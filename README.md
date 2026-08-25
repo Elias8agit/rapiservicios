@@ -92,6 +92,13 @@ Aplicación móvil  →  Servidor Express  →  Supabase (PostgreSQL, Auth, Stor
 
 ## Puesta en marcha
 
+### 0. Obtener el código
+
+```bash
+git clone https://github.com/Elias8agit/rapiservicios.git
+cd rapiservicios
+```
+
 ### 1. Base de datos
 
 Dentro del editor de consultas de Supabase, ejecutar en orden `01_esquema.sql` y
@@ -102,7 +109,7 @@ Ejecutar por último `03_usuario_inicial.sql`.
 ### 2. Servidor
 
 ```bash
-cd servidor
+cd rapiservicios/servidor
 npm install
 copy .env.ejemplo .env      # completar las credenciales
 npm run iniciar             # servidor en el puerto 3000
@@ -111,9 +118,11 @@ npm run iniciar             # servidor en el puerto 3000
 Pruebas disponibles:
 
 ```bash
-npm run prueba              # motor de reglas, sin base de datos
+npm run prueba              # motor de reglas, sin base de datos ni servicio externo
 npm run prueba:conexion     # conexión con Supabase y catálogos cargados
 npm run prueba:flujo -- correo contrasena   # recorrido completo del sistema
+npm run prueba:modelos      # inventario y medición de modelos de interpretación
+npm run prueba:gemini       # comparación entre el clasificador local y el servicio
 ```
 
 ### 3. Aplicación móvil
@@ -177,6 +186,7 @@ constante `DIRECCION_MANUAL` dentro de `movil/configuracion.js`.
 - [x] Capa de interpretación con respaldo local
 - [x] Servicios REST de autenticación, clientes, vehículos y órdenes
 - [x] Aplicación móvil React Native con navegación y pantallas
-- [ ] Prueba de extremo a extremo contra Supabase
-- [ ] Llamada real a la interfaz de Gemini
+- [x] Prueba de extremo a extremo contra Supabase (27 de 27 verificaciones)
+- [x] Integración con el servicio de interpretación y medición de modelos
+- [ ] Pantalla de historial vehicular
 - [ ] Despliegue productivo

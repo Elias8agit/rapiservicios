@@ -13,8 +13,8 @@
  * un cambio de codigo. El proyecto se planteo con Gemini 2.5 Flash, retirado
  * para cuentas nuevas el 19 de agosto de 2026.
  *
- * La eleccion de gemini-flash-lite-latest descansa en la medicion registrada
- * ese mismo dia: 688 ms de demora promedio y tres aciertos de tres, frente a
+ * La eleccion de gemini-flash-lite-latest descansa en la medicion del 19 de
+ * agosto de 2026: 688 ms de demora promedio y tres aciertos de tres, frente a
  * los 4358 ms de gemini-3.1-flash-lite, los 7914 ms de gemini-3.5-flash-lite
  * y los 8286 ms de gemini-3.6-flash. Reproducir con npm run prueba:modelos.
  *
