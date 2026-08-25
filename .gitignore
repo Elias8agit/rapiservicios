@@ -1,0 +1,21 @@
+# Dependencias
+node_modules/
+
+# Credenciales: nunca se versionan
+.env
+.env.local
+
+# Artefactos de construccion y cache
+dist/
+build/
+.expo/
+coverage/
+*.log
+
+# Carpetas de trabajo temporal
+_to_delete/
+_sync*/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

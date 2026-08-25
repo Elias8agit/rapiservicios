@@ -1,0 +1,26 @@
+{
+  "name": "rapiservicios-servidor",
+  "version": "0.2.0",
+  "description": "Servidor de aplicacion del sistema con inteligencia artificial para generar ordenes de trabajo y diagnostico en el taller mecanico Rapiservicios",
+  "main": "src/index.js",
+  "scripts": {
+    "iniciar": "node src/index.js",
+    "desarrollo": "node --watch src/index.js",
+    "prueba": "node pruebas/prueba-diagnostico.js",
+    "prueba:conexion": "node pruebas/prueba-conexion.js",
+    "prueba:flujo": "node pruebas/prueba-flujo.js",
+    "prueba:gemini": "node pruebas/prueba-gemini.js",
+    "prueba:modelos": "node pruebas/prueba-modelos.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "author": "Walter Estuardo Elias Ochoa",
+  "license": "UNLICENSED"
+}

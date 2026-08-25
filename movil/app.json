@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Rapiservicios",
+    "slug": "rapiservicios",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "gt.edu.umg.rapiservicios",
+      "infoPlist": {
+        "NSCameraUsageDescription": "La aplicacion utiliza la camara para adjuntar la fotografia del componente afectado a la orden de trabajo.",
+        "NSPhotoLibraryUsageDescription": "La aplicacion accede a la galeria para adjuntar fotografias del componente afectado."
+      }
+    },
+    "android": {
+      "package": "gt.edu.umg.rapiservicios",
+      "adaptiveIcon": {
+        "backgroundColor": "#123A5F",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["CAMERA"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La aplicacion accede a la galeria para adjuntar fotografias del componente afectado.",
+          "cameraPermission": "La aplicacion utiliza la camara para adjuntar la fotografia del componente afectado a la orden de trabajo."
+        }
+      ]
+    ]
+  }
+}

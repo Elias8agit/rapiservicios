@@ -1,0 +1,130 @@
+erDiagram
+    ROL {
+        int id_rol PK
+        varchar nombre_rol
+        varchar descripcion
+    }
+    USUARIO {
+        int id_usuario PK
+        int id_rol FK
+        uuid auth_uid
+        varchar nombre_completo
+        varchar correo
+        varchar telefono
+        boolean activo
+        timestamp fecha_registro
+    }
+    CLIENTE {
+        int id_cliente PK
+        varchar nombre_completo
+        varchar telefono
+        varchar correo
+        timestamp fecha_registro
+    }
+    VEHICULO {
+        int id_vehiculo PK
+        int id_cliente FK
+        varchar placa
+        varchar marca
+        varchar linea
+        int modelo_anio
+        varchar color
+        int kilometraje
+        timestamp fecha_registro
+    }
+    CATEGORIA_FALLA {
+        int id_categoria PK
+        varchar nombre_categoria
+        varchar sistema_vehicular
+        varchar descripcion
+    }
+    TAREA_REVISION {
+        int id_tarea PK
+        varchar nombre_tarea
+        text descripcion
+        int tiempo_estimado_min
+    }
+    REGLA_DIAGNOSTICO {
+        int id_regla PK
+        int id_categoria FK
+        varchar nombre_regla
+        jsonb condicion
+        decimal nivel_confianza
+        int prioridad
+        boolean activa
+    }
+    REGLA_TAREA {
+        int id_regla_tarea PK
+        int id_regla FK
+        int id_tarea FK
+        int orden_ejecucion
+    }
+    ESTADO_ORDEN {
+        int id_estado PK
+        varchar nombre_estado
+        int orden_secuencia
+    }
+    ORDEN_TRABAJO {
+        int id_orden PK
+        int id_vehiculo FK
+        int id_usuario FK
+        int id_estado FK
+        varchar codigo_consulta
+        text descripcion_falla
+        timestamp fecha_ingreso
+        timestamp fecha_entrega
+        int tiempo_estimado_min
+        text observaciones
+    }
+    DIAGNOSTICO {
+        int id_diagnostico PK
+        int id_orden FK
+        int id_categoria FK
+        varchar origen_interpretacion
+        decimal nivel_confianza
+        text texto_interpretado
+        timestamp fecha_generacion
+    }
+    DETALLE_ORDEN {
+        int id_detalle PK
+        int id_orden FK
+        int id_tarea FK
+        boolean completada
+        int tiempo_real_min
+        text observacion
+    }
+    FOTOGRAFIA {
+        int id_fotografia PK
+        int id_orden FK
+        int id_usuario FK
+        varchar ruta_almacenamiento
+        varchar etapa
+        varchar descripcion
+        timestamp fecha_captura
+    }
+    BITACORA_ESTADO {
+        int id_bitacora PK
+        int id_orden FK
+        int id_estado FK
+        int id_usuario FK
+        timestamp fecha_cambio
+        varchar comentario
+    }
+
+    ROL ||--o{ USUARIO : clasifica
+    CLIENTE ||--o{ VEHICULO : posee
+    VEHICULO ||--o{ ORDEN_TRABAJO : genera
+    USUARIO ||--o{ ORDEN_TRABAJO : recepciona
+    ESTADO_ORDEN ||--o{ ORDEN_TRABAJO : define
+    ORDEN_TRABAJO ||--o{ DIAGNOSTICO : integra
+    CATEGORIA_FALLA ||--o{ DIAGNOSTICO : clasifica
+    ORDEN_TRABAJO ||--o{ DETALLE_ORDEN : contiene
+    TAREA_REVISION ||--o{ DETALLE_ORDEN : obtiene
+    ORDEN_TRABAJO ||--o{ FOTOGRAFIA : documenta
+    USUARIO ||--o{ FOTOGRAFIA : captura
+    ORDEN_TRABAJO ||--o{ BITACORA_ESTADO : traza
+    ESTADO_ORDEN ||--o{ BITACORA_ESTADO : referencia
+    USUARIO ||--o{ BITACORA_ESTADO : registra
+    CATEGORIA_FALLA ||--o{ REGLA_DIAGNOSTICO : agrupa
+    REGLA_DIAGNOSTICO ||--o{ REGLA_TAREA : asocia
+    TAREA_REVISION ||--o{ REGLA_TAREA : integra
