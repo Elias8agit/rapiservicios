@@ -22,8 +22,12 @@ services:
     startCommand: npm start
     healthCheckPath: /api/salud
     envVars:
+      # Version veintidos o superior. El cliente de Supabase construye su
+      # componente de tiempo real al momento de crearse y ese componente
+      # reclama el WebSocket nativo, incorporado a Node a partir de la version
+      # veintidos. Con la version veinte el proceso termina con estado uno.
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
       - key: GEMINI_MODELO
         value: gemini-flash-lite-latest
       - key: GEMINI_LIMITE_MS

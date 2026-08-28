@@ -14,7 +14,7 @@
     "prueba:modelos": "node pruebas/prueba-modelos.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
