@@ -9,7 +9,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { api, establecerTestigo } from '../api/cliente';
+import { api, despertarServidor, establecerTestigo } from '../api/cliente';
 
 const LLAVE = 'rapiservicios.sesion';
 
@@ -19,27 +19,62 @@ export function ProveedorSesion({ children }) {
   const [sesion, setSesion] = useState(null);
   const [cargando, setCargando] = useState(true);
 
-  // Recuperacion de la sesion resguardada dentro del dispositivo.
-  useEffect(() => {
-    (async () => {
-      try {
-        const guardada = await AsyncStorage.getItem(LLAVE);
-        if (guardada) {
-          const datos = JSON.parse(guardada);
-          establecerTestigo(datos.testigo);
-          // El servidor confirma que el testigo conserva validez.
-          try {
-            const { usuario } = await api.perfil();
-            setSesion({ ...datos, usuario });
-          } catch (error) {
+  // Estado del enlace con el servidor: ENLAZANDO mientras responde la
+  // consulta de salud, ENLAZADO cuando el servicio atiende, y SIN_ENLACE
+  // cuando el presupuesto se agota sin respuesta.
+  const [enlace, setEnlace] = useState('ENLAZANDO');
+  const [segundosEspera, setSegundosEspera] = useState(0);
+
+  /**
+   * Arranque de la aplicacion.
+   *
+   * Primero despierta al servidor y despues restablece la sesion resguardada.
+   * El orden importa: una consulta de perfil contra un servicio dormido
+   * vencería por tiempo y expulsaria al mecanico hacia la pantalla de ingreso
+   * aun con la sesion vigente.
+   */
+  async function arrancar() {
+    setEnlace('ENLAZANDO');
+    setSegundosEspera(0);
+    setCargando(true);
+
+    try {
+      await despertarServidor(setSegundosEspera);
+      setEnlace('ENLAZADO');
+    } catch (error) {
+      setEnlace('SIN_ENLACE');
+      setCargando(false);
+      return;
+    }
+
+    try {
+      const guardada = await AsyncStorage.getItem(LLAVE);
+      if (guardada) {
+        const datos = JSON.parse(guardada);
+        establecerTestigo(datos.testigo);
+        try {
+          const { usuario } = await api.perfil();
+          setSesion({ ...datos, usuario });
+        } catch (error) {
+          // El descarte de la sesion corresponde unicamente al rechazo del
+          // testigo por parte del servidor. Un vencimiento por tiempo o una
+          // falla de red no acreditan que la sesion perdio validez, y borrarla
+          // obligaria al mecanico a escribir la contrasena sin motivo.
+          if (error.estado === 401 || error.estado === 403) {
             await AsyncStorage.removeItem(LLAVE);
             establecerTestigo(null);
+          } else {
+            setSesion(datos);
           }
         }
-      } finally {
-        setCargando(false);
       }
-    })();
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    arrancar();
   }, []);
 
   async function ingresar(correo, contrasena) {
@@ -70,12 +105,15 @@ export function ProveedorSesion({ children }) {
     () => ({
       sesion,
       cargando,
+      enlace,
+      segundosEspera,
+      reintentarEnlace: arrancar,
       ingresar,
       salir,
       usuario: sesion?.usuario || null,
       esPropietario: sesion?.usuario?.rol === 'PROPIETARIO',
     }),
-    [sesion, cargando]
+    [sesion, cargando, enlace, segundosEspera]
   );
 
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>;

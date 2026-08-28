@@ -22,6 +22,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ProveedorSesion, useSesion } from './src/contexto/Sesion';
+import PantallaEnlace from './src/componentes/PantallaEnlace';
 import { COLORES } from './src/tema';
 
 import IniciarSesion from './src/pantallas/IniciarSesion';
@@ -120,7 +121,13 @@ function NavegacionAcceso() {
 }
 
 function Raiz() {
-  const { sesion, cargando } = useSesion();
+  const { sesion, cargando, enlace, segundosEspera, reintentarEnlace } = useSesion();
+
+  // El enlace con el servidor antecede a cualquier pantalla: sin servicio
+  // disponible, ni el ingreso ni la sesion resguardada resultan operables.
+  if (enlace === 'ENLAZANDO' || enlace === 'SIN_ENLACE') {
+    return <PantallaEnlace estado={enlace} segundos={segundosEspera} alReintentar={reintentarEnlace} />;
+  }
 
   if (cargando) {
     return (

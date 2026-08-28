@@ -2,10 +2,16 @@
   "expo": {
     "name": "Rapiservicios",
     "slug": "rapiservicios",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#000000",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "gt.edu.umg.rapiservicios",
@@ -16,13 +22,14 @@
     },
     "android": {
       "package": "gt.edu.umg.rapiservicios",
+      "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#123A5F",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA"]
+      "permissions": ["CAMERA", "INTERNET"]
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -4,6 +4,7 @@
   "description": "Servidor de aplicacion del sistema con inteligencia artificial para generar ordenes de trabajo y diagnostico en el taller mecanico Rapiservicios",
   "main": "src/index.js",
   "scripts": {
+    "start": "node src/index.js",
     "iniciar": "node src/index.js",
     "desarrollo": "node --watch src/index.js",
     "prueba": "node pruebas/prueba-diagnostico.js",

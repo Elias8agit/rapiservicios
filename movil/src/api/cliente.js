@@ -30,6 +30,24 @@ const LIMITE_ESPERA_AMPLIO = 30000;
 /** Milisegundos entre el primer intento y el reintento automatico. */
 const PAUSA_REINTENTO = 1200;
 
+/**
+ * Presupuesto para despertar el servidor de aplicacion.
+ *
+ * La capa gratuita del proveedor de alojamiento suspende el servicio despues
+ * de quince minutos sin peticiones y lo restablece cuando llega la siguiente.
+ * Ese restablecimiento comprende la descarga de la imagen y el arranque del
+ * proceso, de modo que la primera peticion del dia tarda cerca de un minuto,
+ * muy por encima del limite ordinario de doce segundos.
+ *
+ * La aplicacion consulta el estado del servicio al abrirse y aguarda dentro de
+ * este presupuesto antes de mostrar el ingreso. El mecanico observa un aviso
+ * en lugar de una pantalla detenida.
+ */
+const LIMITE_DESPERTAR_TOTAL = 90000;
+
+/** Limite de cada intento individual dentro del despertar. */
+const LIMITE_DESPERTAR_INTENTO = 20000;
+
 let testigoActual = null;
 
 /** Registra el testigo que acompana a las peticiones siguientes. */
@@ -132,7 +150,40 @@ async function peticion(ruta, opciones = {}, ajustes = {}) {
   return cuerpo;
 }
 
-const obtener = (ruta) => peticion(ruta);
+const obtener = (ruta, ajustes) => peticion(ruta, {}, ajustes);
+
+/**
+ * Consulta el estado del servidor hasta obtener respuesta o agotar el
+ * presupuesto. Devuelve el cuerpo de /salud cuando el servicio responde.
+ *
+ * @param {(segundos:number)=>void} alAvanzar Recibe los segundos transcurridos
+ *        despues de cada intento fallido, para que la pantalla informe la
+ *        espera al mecanico en lugar de mostrar un indicador mudo.
+ */
+export async function despertarServidor(alAvanzar) {
+  const inicio = Date.now();
+  let intento = 0;
+
+  while (Date.now() - inicio < LIMITE_DESPERTAR_TOTAL) {
+    intento += 1;
+    try {
+      return await peticion('/salud', {}, { limite: LIMITE_DESPERTAR_INTENTO, reintentos: 0 });
+    } catch (error) {
+      // Una respuesta con estado de error igual acredita que el servicio ya
+      // atiende peticiones, de modo que el despertar concluye.
+      if (error.estado && error.estado < 500) return { estado: 'operativo' };
+
+      if (typeof alAvanzar === 'function') {
+        alAvanzar(Math.round((Date.now() - inicio) / 1000));
+      }
+      if (Date.now() - inicio >= LIMITE_DESPERTAR_TOTAL) break;
+      await esperar(intento === 1 ? 500 : 2000);
+    }
+  }
+
+  throw fallaDeComunicacion('RED');
+}
+
 const enviar = (ruta, cuerpo, ajustes) => peticion(ruta, { method: 'POST', body: JSON.stringify(cuerpo) }, ajustes);
 const reemplazar = (ruta, cuerpo) => peticion(ruta, { method: 'PUT', body: JSON.stringify(cuerpo) });
 const modificar = (ruta, cuerpo) => peticion(ruta, { method: 'PATCH', body: JSON.stringify(cuerpo) });

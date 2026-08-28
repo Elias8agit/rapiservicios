@@ -24,7 +24,10 @@ const rutasDiagnostico = require('./rutas/diagnostico');
 const rutasConsulta = require('./rutas/consulta');
 
 const app = express();
-const PUERTO = process.env.PUERTO || 3000;
+// El proveedor de alojamiento asigna el puerto de escucha por medio de la
+// variable PORT y lo cambia entre despliegues. La variable PUERTO conserva la
+// ejecucion local dentro de la computadora del taller.
+const PUERTO = process.env.PORT || process.env.PUERTO || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '12mb' }));

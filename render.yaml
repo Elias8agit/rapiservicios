@@ -1,0 +1,42 @@
+# ==========================================================================
+#  DESPLIEGUE DEL SERVIDOR DE APLICACION - Taller mecanico Rapiservicios
+#
+#  Este archivo describe el servicio ante el proveedor Render. La consola del
+#  proveedor lo reconoce dentro de la opcion Blueprint y crea el servicio con
+#  la configuracion aqui declarada, de modo que el despliegue queda registrado
+#  dentro del repositorio y no dentro de una pantalla de administracion.
+#
+#  Las cinco claves marcadas con sync: false permanecen fuera del repositorio.
+#  El proveedor las solicita al momento de crear el servicio y las conserva
+#  cifradas, con lo cual las credenciales de Supabase y de Google nunca quedan
+#  escritas dentro del control de versiones.
+# ==========================================================================
+
+services:
+  - type: web
+    name: rapiservicios-api
+    runtime: node
+    plan: free
+    rootDir: servidor
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/salud
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: GEMINI_MODELO
+        value: gemini-flash-lite-latest
+      - key: GEMINI_LIMITE_MS
+        value: "8000"
+      - key: GEMINI_UMBRAL
+        value: "0.60"
+      - key: SUPABASE_BUCKET_FOTOGRAFIAS
+        value: fotografias-ordenes
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_CLAVE_ANONIMA
+        sync: false
+      - key: SUPABASE_CLAVE_SERVICIO
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
