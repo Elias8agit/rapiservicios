@@ -138,26 +138,45 @@ CREATE TABLE orden_trabajo (
 CREATE INDEX idx_orden_vehiculo ON orden_trabajo(id_vehiculo);
 CREATE INDEX idx_orden_estado   ON orden_trabajo(id_estado);
 
+-- La categoria admite ausencia de valor. Un diagnostico sin categoria recoge
+-- una interpretacion fuera del catalogo del taller, o bien la constancia de
+-- que la descripcion carecia de una falla concreta. El motivo permanece
+-- dentro de texto_interpretado en ambos casos.
 CREATE TABLE diagnostico (
     id_diagnostico       SERIAL        PRIMARY KEY,
     id_orden             INTEGER       NOT NULL REFERENCES orden_trabajo(id_orden) ON DELETE CASCADE,
-    id_categoria         INTEGER       NOT NULL REFERENCES categoria_falla(id_categoria),
+    id_categoria         INTEGER       REFERENCES categoria_falla(id_categoria),
     origen_interpretacion VARCHAR(20)  NOT NULL
-                         CHECK (origen_interpretacion IN ('TEXTO','FOTOGRAFIA','MIXTO','MANUAL')),
+                         CHECK (origen_interpretacion IN ('TEXTO','FOTOGRAFIA','MIXTO','MANUAL','GENERATIVO')),
     nivel_confianza      NUMERIC(4,3)  CHECK (nivel_confianza BETWEEN 0 AND 1),
     texto_interpretado   TEXT,
+    sistema_sugerido     VARCHAR(80),
+    hallazgo             TEXT,
     fecha_generacion     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_diagnostico_orden ON diagnostico(id_orden);
 
+-- Una tarea de revision procede de dos vias. La via REGLA apunta al catalogo
+-- del taller por medio de id_tarea. La via GENERATIVO recoge una sugerencia
+-- del servicio de interpretacion para una averia ajena al catalogo, y conserva
+-- el nombre y el tiempo dentro de la propia fila.
 CREATE TABLE detalle_orden (
-    id_detalle      SERIAL   PRIMARY KEY,
-    id_orden        INTEGER  NOT NULL REFERENCES orden_trabajo(id_orden) ON DELETE CASCADE,
-    id_tarea        INTEGER  NOT NULL REFERENCES tarea_revision(id_tarea),
-    completada      BOOLEAN  NOT NULL DEFAULT FALSE,
-    tiempo_real_min INTEGER  CHECK (tiempo_real_min >= 0),
-    observacion     TEXT,
-    UNIQUE (id_orden, id_tarea)
+    id_detalle            SERIAL       PRIMARY KEY,
+    id_orden              INTEGER      NOT NULL REFERENCES orden_trabajo(id_orden) ON DELETE CASCADE,
+    id_tarea              INTEGER      REFERENCES tarea_revision(id_tarea),
+    origen                VARCHAR(12)  NOT NULL DEFAULT 'REGLA'
+                          CHECK (origen IN ('REGLA','GENERATIVO')),
+    nombre_tarea_sugerida VARCHAR(160),
+    tiempo_sugerido_min   INTEGER      CHECK (tiempo_sugerido_min > 0),
+    completada            BOOLEAN      NOT NULL DEFAULT FALSE,
+    tiempo_real_min       INTEGER      CHECK (tiempo_real_min >= 0),
+    observacion           TEXT,
+    UNIQUE (id_orden, id_tarea),
+    CONSTRAINT detalle_orden_coherencia_check CHECK (
+        (origen = 'REGLA'      AND id_tarea IS NOT NULL)
+     OR (origen = 'GENERATIVO' AND nombre_tarea_sugerida IS NOT NULL
+                               AND tiempo_sugerido_min   IS NOT NULL)
+    )
 );
 
 -- --------------------------------------------------------------------------

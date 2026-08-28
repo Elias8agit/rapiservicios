@@ -106,10 +106,10 @@ enrutador.get('/:id', async (peticion, respuesta) => {
 
   const [diagnosticos, tareas, fotografias, bitacora] = await Promise.all([
     clienteServicio.from('diagnostico')
-      .select('id_diagnostico, origen_interpretacion, nivel_confianza, texto_interpretado, fecha_generacion, categoria:categoria_falla(id_categoria, nombre_categoria, sistema_vehicular)')
+      .select('id_diagnostico, origen_interpretacion, nivel_confianza, texto_interpretado, sistema_sugerido, hallazgo, fecha_generacion, categoria:categoria_falla(id_categoria, nombre_categoria, sistema_vehicular)')
       .eq('id_orden', idOrden),
     clienteServicio.from('detalle_orden')
-      .select('id_detalle, completada, tiempo_real_min, observacion, tarea:tarea_revision(id_tarea, nombre_tarea, descripcion, tiempo_estimado_min)')
+      .select('id_detalle, origen, nombre_tarea_sugerida, tiempo_sugerido_min, completada, tiempo_real_min, observacion, tarea:tarea_revision(id_tarea, nombre_tarea, descripcion, tiempo_estimado_min)')
       .eq('id_orden', idOrden)
       .order('id_detalle'),
     clienteServicio.from('fotografia')
@@ -151,8 +151,18 @@ enrutador.post('/', async (peticion, respuesta) => {
   if (!idVehiculo) {
     return respuesta.status(400).json({ error: 'El vehiculo resulta obligatorio.' });
   }
-  if (!descripcionFalla || String(descripcionFalla).trim().length < 10) {
-    return respuesta.status(400).json({ error: 'La descripcion de la falla requiere al menos diez caracteres.' });
+
+  // Longitud minima de la descripcion. Una fotografia aporta informacion por
+  // si misma y la capa de interpretacion la aprovecha, de modo que la
+  // exigencia sobre el texto disminuye cuando el mecanico adjunta imagen.
+  const hayFotografia = Boolean(fotografia && fotografia.datos);
+  const minimoTexto = hayFotografia ? 4 : 10;
+  if (!descripcionFalla || String(descripcionFalla).trim().length < minimoTexto) {
+    return respuesta.status(400).json({
+      error: hayFotografia
+        ? 'La descripcion de la falla requiere al menos cuatro caracteres.'
+        : 'La descripcion de la falla requiere al menos diez caracteres. Con una fotografia adjunta bastan cuatro.',
+    });
   }
 
   try {
@@ -172,7 +182,8 @@ enrutador.post('/', async (peticion, respuesta) => {
     // base de datos del taller y nunca viaja hacia el servicio externo.
     const interpretacion = await clasificar(String(descripcionFalla), fotografia);
 
-    // Motor de reglas del taller.
+    // NIVEL 1. La categoria pertenece al catalogo del taller, de modo que la
+    // base de conocimiento propia decide las tareas y el tiempo.
     const diagnostico = interpretacion.idCategoria
       ? evaluar({
           idCategoria: interpretacion.idCategoria,
@@ -180,7 +191,19 @@ enrutador.post('/', async (peticion, respuesta) => {
           nivelConfianza: interpretacion.nivelConfianza,
           kilometraje: kilometrajeUsado,
         })
-      : { aplicada: false, motivo: 'La descripcion no corresponde a ninguna categoria del catalogo.' };
+      : { aplicada: false, motivo: 'La averia no corresponde a ninguna categoria del catalogo.' };
+
+    // NIVEL 2. El catalogo no cubre la averia y la capa de interpretacion
+    // propuso tareas por cuenta propia. Esas tareas sostienen la orden y
+    // quedan marcadas como sugerencia, nunca como decision del taller.
+    const tareasSugeridas =
+      !diagnostico.aplicada && interpretacion.hayFalla ? interpretacion.tareasSugeridas || [] : [];
+
+    const tiempoSugeridoTotal = tareasSugeridas.reduce((total, t) => total + t.minutos, 0);
+
+    const tiempoEstimadoOrden = diagnostico.aplicada
+      ? diagnostico.tiempoEstimadoMin
+      : tiempoSugeridoTotal || null;
 
     const idEstadoInicial = await idDeEstado('RECIBIDO');
     if (!idEstadoInicial) {
@@ -197,7 +220,7 @@ enrutador.post('/', async (peticion, respuesta) => {
         id_estado: idEstadoInicial,
         codigo_consulta: codigoConsulta,
         descripcion_falla: String(descripcionFalla).trim(),
-        tiempo_estimado_min: diagnostico.aplicada ? diagnostico.tiempoEstimadoMin : null,
+        tiempo_estimado_min: tiempoEstimadoOrden,
         observaciones,
       })
       .select('id_orden, codigo_consulta, fecha_ingreso, tiempo_estimado_min')
@@ -207,25 +230,48 @@ enrutador.post('/', async (peticion, respuesta) => {
       return respuesta.status(400).json({ error: 'No se logro registrar la orden.', detalle: errorOrden.message });
     }
 
-    // Asiento del diagnostico sugerido.
-    if (interpretacion.idCategoria) {
-      const origen = ['TEXTO', 'FOTOGRAFIA', 'MIXTO', 'MANUAL'].includes(interpretacion.origen)
-        ? interpretacion.origen
-        : 'TEXTO';
+    // Asiento del diagnostico. El registro procede siempre, incluso sin
+    // categoria: la ausencia de categoria tambien constituye un resultado, y
+    // el motivo de esa ausencia es la evidencia que el mecanico necesita para
+    // entender por que la orden llego sin tareas del taller. Hasta el 28 de
+    // agosto de 2026 ese registro se omitia y la justificacion se perdia.
+    const origenInterpretacion = ['TEXTO', 'FOTOGRAFIA', 'MIXTO', 'MANUAL', 'GENERATIVO'].includes(
+      interpretacion.origen
+    )
+      ? interpretacion.origen
+      : 'TEXTO';
 
-      await clienteServicio.from('diagnostico').insert({
-        id_orden: orden.id_orden,
-        id_categoria: interpretacion.idCategoria,
-        origen_interpretacion: origen,
-        nivel_confianza: Number(interpretacion.nivelConfianza || 0),
-        texto_interpretado: interpretacion.justificacion || null,
-      });
-    }
+    await clienteServicio.from('diagnostico').insert({
+      id_orden: orden.id_orden,
+      id_categoria: interpretacion.idCategoria || null,
+      origen_interpretacion: origenInterpretacion,
+      nivel_confianza: Number(interpretacion.nivelConfianza || 0),
+      texto_interpretado: interpretacion.justificacion || null,
+      sistema_sugerido: interpretacion.sistemaSugerido || null,
+      hallazgo: interpretacion.hallazgo || null,
+    });
 
-    // Detalle de tareas de revision que sugiere el motor de reglas.
+    // Detalle de tareas del nivel uno, decididas por el motor de reglas.
     if (diagnostico.aplicada && diagnostico.tareas.length) {
       await clienteServicio.from('detalle_orden').insert(
-        diagnostico.tareas.map((t) => ({ id_orden: orden.id_orden, id_tarea: t.idTarea }))
+        diagnostico.tareas.map((t) => ({
+          id_orden: orden.id_orden,
+          id_tarea: t.idTarea,
+          origen: 'REGLA',
+        }))
+      );
+    }
+
+    // Detalle de tareas del nivel dos, sugeridas por la capa de interpretacion.
+    if (tareasSugeridas.length) {
+      await clienteServicio.from('detalle_orden').insert(
+        tareasSugeridas.map((t) => ({
+          id_orden: orden.id_orden,
+          id_tarea: null,
+          origen: 'GENERATIVO',
+          nombre_tarea_sugerida: t.nombre,
+          tiempo_sugerido_min: t.minutos,
+        }))
       );
     }
 
@@ -268,6 +314,8 @@ enrutador.post('/', async (peticion, respuesta) => {
       orden: { ...orden, placa: vehiculo.placa },
       interpretacion,
       diagnostico,
+      tareasSugeridas,
+      nivelAtencion: diagnostico.aplicada ? 1 : tareasSugeridas.length ? 2 : 0,
       fotografiaResguardada: Boolean(rutaFotografia),
     });
   } catch (error) {

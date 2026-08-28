@@ -147,20 +147,72 @@ export default function OrdenDetalle({ route }) {
         {diagnosticos.length === 0 ? (
           <Text style={estilos.tarjetaDetalle}>La descripcion se derivo a revision manual.</Text>
         ) : (
-          diagnosticos.map((d) => (
-            <View key={d.id_diagnostico} style={{ marginTop: ESPACIO.sm }}>
-              <Text style={{ color: COLORES.texto, fontSize: 15, fontWeight: '600' }}>
-                {d.categoria?.nombre_categoria}
-              </Text>
-              <Text style={estilos.tarjetaDetalle}>Sistema: {d.categoria?.sistema_vehicular}</Text>
-              <Text style={estilos.tarjetaDetalle}>
-                Confianza: {(Number(d.nivel_confianza) * 100).toFixed(1)} % · origen {d.origen_interpretacion}
-              </Text>
-              {d.texto_interpretado ? (
-                <Text style={estilos.tarjetaDetalle}>{d.texto_interpretado}</Text>
-              ) : null}
-            </View>
-          ))
+          diagnosticos.map((d) => {
+            const generativo = d.origen_interpretacion === 'GENERATIVO';
+            const sinLectura = !d.categoria && !generativo;
+
+            return (
+              <View key={d.id_diagnostico} style={{ marginTop: ESPACIO.sm }}>
+                <Text style={{ color: COLORES.texto, fontSize: 15, fontWeight: '600' }}>
+                  {d.categoria?.nombre_categoria ||
+                    d.sistema_sugerido ||
+                    'Sin correspondencia dentro del catalogo'}
+                </Text>
+
+                <Text style={estilos.tarjetaDetalle}>
+                  {d.categoria
+                    ? `Sistema: ${d.categoria.sistema_vehicular}`
+                    : d.sistema_sugerido
+                    ? `Sistema senalado: ${d.sistema_sugerido}`
+                    : 'La descripcion no permitio ubicar un sistema del vehiculo.'}
+                </Text>
+
+                {d.hallazgo ? (
+                  <Text style={[estilos.tarjetaDetalle, { color: COLORES.texto, marginTop: ESPACIO.xs }]}>
+                    {d.hallazgo}
+                  </Text>
+                ) : null}
+
+                <Text style={estilos.tarjetaDetalle}>
+                  Confianza: {(Number(d.nivel_confianza) * 100).toFixed(1)} % · origen{' '}
+                  {d.origen_interpretacion}
+                </Text>
+
+                {d.texto_interpretado ? (
+                  <Text style={estilos.tarjetaDetalle}>{d.texto_interpretado}</Text>
+                ) : null}
+
+                {/* La procedencia de la lectura permanece a la vista. Una
+                    sugerencia del asistente no goza del respaldo de la base de
+                    conocimiento del taller y el mecanico requiere saberlo
+                    antes de trabajar sobre ella. */}
+                {generativo ? (
+                  <View
+                    style={{
+                      marginTop: ESPACIO.sm,
+                      padding: ESPACIO.sm,
+                      borderRadius: 8,
+                      backgroundColor: '#FFF4E5',
+                      borderWidth: 1,
+                      borderColor: '#F0D2A8',
+                    }}
+                  >
+                    <Text style={{ color: COLORES.aviso, fontSize: 12, lineHeight: 17 }}>
+                      Esta lectura proviene del asistente, no de las reglas del taller. La averia
+                      queda fuera del catalogo de doce categorias. Conviene confirmarla con criterio
+                      propio antes de trabajar.
+                    </Text>
+                  </View>
+                ) : null}
+
+                {sinLectura ? (
+                  <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.xs, fontStyle: 'italic' }]}>
+                    La orden queda a criterio del mecanico.
+                  </Text>
+                ) : null}
+              </View>
+            );
+          })
         )}
       </View>
 
@@ -174,24 +226,51 @@ export default function OrdenDetalle({ route }) {
         {tareas.length === 0 ? (
           <Text style={estilos.tarjetaDetalle}>Sin tareas asignadas.</Text>
         ) : (
-          tareas.map((t) => (
-            <TouchableOpacity
-              key={t.id_detalle}
-              style={{ flexDirection: 'row', alignItems: 'center', marginTop: ESPACIO.sm }}
-              onPress={() => alternarTarea(t)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={t.completada ? 'checkbox' : 'square-outline'}
-                size={22}
-                color={t.completada ? COLORES.exito : COLORES.textoSuave}
-              />
-              <View style={{ marginLeft: ESPACIO.sm, flex: 1 }}>
-                <Text style={{ color: COLORES.texto, fontSize: 14 }}>{t.tarea?.nombre_tarea}</Text>
-                <Text style={estilos.tarjetaDetalle}>{t.tarea?.tiempo_estimado_min} minutos estimados</Text>
-              </View>
-            </TouchableOpacity>
-          ))
+          tareas.map((t) => {
+            // Una tarea procede del catalogo del taller o de una sugerencia
+            // del asistente. Ambas se marcan igual, pero se leen distinto.
+            const sugerida = t.origen === 'GENERATIVO';
+            const nombre = sugerida ? t.nombre_tarea_sugerida : t.tarea?.nombre_tarea;
+            const minutos = sugerida ? t.tiempo_sugerido_min : t.tarea?.tiempo_estimado_min;
+
+            return (
+              <TouchableOpacity
+                key={t.id_detalle}
+                style={{ flexDirection: 'row', alignItems: 'center', marginTop: ESPACIO.sm }}
+                onPress={() => alternarTarea(t)}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={t.completada ? 'checkbox' : 'square-outline'}
+                  size={22}
+                  color={t.completada ? COLORES.exito : COLORES.textoSuave}
+                />
+                <View style={{ marginLeft: ESPACIO.sm, flex: 1 }}>
+                  <Text style={{ color: COLORES.texto, fontSize: 14 }}>{nombre}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                    <Text style={estilos.tarjetaDetalle}>{minutos} minutos estimados</Text>
+                    {sugerida ? (
+                      <View
+                        style={{
+                          marginLeft: ESPACIO.sm,
+                          paddingHorizontal: 7,
+                          paddingVertical: 2,
+                          borderRadius: 10,
+                          backgroundColor: '#FFF4E5',
+                          borderWidth: 1,
+                          borderColor: '#F0D2A8',
+                        }}
+                      >
+                        <Text style={{ color: COLORES.aviso, fontSize: 10, fontWeight: '700' }}>
+                          SUGERIDA
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
         {orden.tiempo_estimado_min ? (
           <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.md, fontWeight: '600' }]}>

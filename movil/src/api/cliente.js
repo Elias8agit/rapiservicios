@@ -195,8 +195,15 @@ export const api = {
   salud: () => obtener('/salud'),
 
   // Modulo M1
-  ingresar: (correo, contrasena) => enviar('/autenticacion/ingreso', { correo, contrasena }),
-  perfil: () => obtener('/autenticacion/perfil'),
+  //
+  // El ingreso y la consulta de perfil constituyen la primera operacion real
+  // contra el servidor despues del despertar. Ese primer trabajo carga la
+  // conexion con el proveedor de datos y resulta mas lento que los siguientes,
+  // de modo que ambos reciben el limite ampliado. Con el limite ordinario, el
+  // mecanico observaba una falla por tiempo agotado y lograba entrar recien al
+  // segundo intento.
+  ingresar: (correo, contrasena) => enviar('/autenticacion/ingreso', { correo, contrasena }, AMPLIO),
+  perfil: () => obtener('/autenticacion/perfil', AMPLIO),
   salir: () => enviar('/autenticacion/salida', {}),
   listarUsuarios: () => obtener('/usuarios'),
   crearUsuario: (datos) => enviar('/usuarios', datos),
