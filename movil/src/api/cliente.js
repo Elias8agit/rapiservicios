@@ -21,11 +21,17 @@ const LIMITE_ESPERA = 12000;
 /**
  * Limite ampliado para las operaciones que involucran a la capa de
  * interpretacion o el envio de una fotografia. La generacion de una orden
- * recorre el servicio externo de clasificacion, el motor de reglas, cinco
+ * recorre el servicio externo de interpretacion, el motor de reglas, cinco
  * escrituras en la base de datos y la subida de la imagen, de modo que
  * requiere mas holgura que una consulta de listado.
+ *
+ * El valor subio de 30 a 45 segundos el 28 de agosto de 2026, cuando el
+ * presupuesto de la capa de interpretacion paso de 8 a 20 segundos. El limite
+ * del cliente debe superar al del servidor, de lo contrario el telefono
+ * abandona la peticion mientras el servidor todavia trabaja y la orden queda
+ * creada sin que el mecanico lo sepa.
  */
-const LIMITE_ESPERA_AMPLIO = 30000;
+const LIMITE_ESPERA_AMPLIO = 45000;
 
 /** Milisegundos entre el primer intento y el reintento automatico. */
 const PAUSA_REINTENTO = 1200;

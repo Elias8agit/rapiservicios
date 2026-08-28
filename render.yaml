@@ -31,7 +31,13 @@ services:
       - key: GEMINI_MODELO
         value: gemini-flash-lite-latest
       - key: GEMINI_LIMITE_MS
-        value: "8000"
+        value: "20000"
+      - key: GEMINI_TECHO_TEXTO
+        value: "700"
+      # Medicion del 28 de agosto de 2026: gemini-flash-lite-latest rechaza la
+      # supresion del razonamiento previo con estado 400. Permanece apagada.
+      - key: GEMINI_SUPRIMIR_RAZONAMIENTO
+        value: "0"
       - key: GEMINI_UMBRAL
         value: "0.60"
       - key: SUPABASE_BUCKET_FOTOGRAFIAS

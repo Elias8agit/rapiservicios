@@ -35,6 +35,14 @@
  * los 4358 ms de gemini-3.1-flash-lite, los 7914 ms de gemini-3.5-flash-lite
  * y los 8286 ms de gemini-3.6-flash. Reproducir con npm run prueba:modelos.
  *
+ * La medicion del 28 de agosto de 2026 corrigio el presupuesto de tiempo. Con
+ * el contrato de dos niveles, tres de cuatro casos excedieron los 8000 ms del
+ * limite anterior y cayeron al respaldo local. La abstencion, que devuelve una
+ * sola linea, respondio en 3278 ms. La demora la gobierna la cantidad de texto
+ * que el modelo produce, no la dificultad del caso. De ahi el presupuesto de
+ * 20000 ms, el techo de generacion y la supresion del razonamiento previo.
+ * Reproducir con npm run prueba:niveles.
+ *
  * Cuando la clave de servicio no existe o el servicio no responde, opera el
  * clasificador local de respaldo por coincidencia lexica.
  */
@@ -55,7 +63,37 @@ const URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
  * del taller continua. Vale mas una categoria aproximada de inmediato que una
  * categoria exacta un minuto despues.
  */
-const PRESUPUESTO_MS = Number(process.env.GEMINI_LIMITE_MS || 8000);
+const PRESUPUESTO_MS = Number(process.env.GEMINI_LIMITE_MS || 20000);
+
+/**
+ * Techo de generacion, en unidades de texto del proveedor.
+ *
+ * La demora de un modelo de lenguaje depende sobre todo de la cantidad de
+ * texto que produce. El techo acota esa produccion y con ella la espera del
+ * mecanico. La medicion del 28 de agosto de 2026 lo dejo a la vista: una
+ * abstencion de una linea tardo 3278 ms, mientras que las respuestas con
+ * hallazgo y tareas excedieron los 8000 ms del presupuesto anterior.
+ */
+const TECHO_GENERACION = Number(process.env.GEMINI_TECHO_TEXTO || 700);
+
+/**
+ * Supresion del razonamiento previo del modelo.
+ *
+ * Las variantes recientes dedican tiempo a un razonamiento interno antes de
+ * responder. La medicion del 28 de agosto de 2026 descarto esa via para el
+ * modelo en uso: gemini-flash-lite-latest rechaza la instruccion con estado
+ * 400 y un mensaje generico. La instruccion permanece desactivada de manera
+ * predeterminada, de modo que ningun arranque del servidor gasta un viaje
+ * perdido contra el proveedor.
+ *
+ * El valor 1 dentro de GEMINI_SUPRIMIR_RAZONAMIENTO la reactiva, util ante un
+ * cambio de modelo. Si el proveedor la rechaza, el modulo la retira por cuenta
+ * propia y repite el intento sin ella.
+ *
+ * La demora quedo resuelta por otra via: el techo de generacion. Los tres
+ * casos limpios de esa medicion respondieron en 4509, 1326 y 901 ms.
+ */
+let suprimirRazonamiento = process.env.GEMINI_SUPRIMIR_RAZONAMIENTO === '1';
 
 /** Codigos de estado que corresponden a una condicion pasajera del servicio. */
 const ESTADOS_PASAJEROS = [429, 500, 502, 503, 504];
@@ -72,8 +110,13 @@ const ESTADOS_PASAJEROS = [429, 500, 502, 503, 504];
  */
 const UMBRAL_INTERPRETACION = Number(process.env.GEMINI_UMBRAL || 0.60);
 
-/** Cantidad maxima de tareas que se admite de una sugerencia del nivel dos. */
-const MAXIMO_TAREAS_SUGERIDAS = 6;
+/**
+ * Cantidad maxima de tareas que se admite de una sugerencia del nivel dos.
+ *
+ * Cuatro tareas bastan para orientar una revision y contienen la demora de la
+ * respuesta. Una lista mas larga cansa al mecanico y retrasa la orden.
+ */
+const MAXIMO_TAREAS_SUGERIDAS = 4;
 
 /** Margenes admisibles para el tiempo de una tarea sugerida, en minutos. */
 const TIEMPO_MINIMO = 5;
@@ -115,6 +158,9 @@ function construirInstruccion(conFotografia) {
       : 'No acompana fotografia. Trabaja unicamente con el texto.',
     '',
     'El campo nivelConfianza refleja la certeza real de tu lectura.',
+    'Redacta hallazgo y justificacion en una sola linea cada uno. El mecanico',
+    'atiende al cliente con el vehiculo enfrente y una respuesta breve le sirve',
+    'mas que una extensa.',
     '',
     'Responde unicamente con un objeto JSON con esta forma exacta:',
     '{',
@@ -233,6 +279,15 @@ async function clasificar(descripcion, fotografia = null) {
       // manera que no queda registrada en los archivos de bitacora de los
       // servidores intermedios. Este metodo admite cualquier formato de clave
       // que emita el proveedor.
+      const generationConfig = {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+        maxOutputTokens: TECHO_GENERACION,
+      };
+
+      const conSupresion = suprimirRazonamiento;
+      if (conSupresion) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+
       const respuesta = await fetch(`${URL_BASE}/${MODELO}:generateContent`, {
         method: 'POST',
         headers: {
@@ -240,10 +295,7 @@ async function clasificar(descripcion, fotografia = null) {
           'x-goog-api-key': CLAVE,
         },
         signal: controlador.signal,
-        body: JSON.stringify({
-          contents: [{ parts: partes }],
-          generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
-        }),
+        body: JSON.stringify({ contents: [{ parts: partes }], generationConfig }),
       });
 
       if (!respuesta.ok) {
@@ -251,6 +303,24 @@ async function clasificar(descripcion, fotografia = null) {
         // agotada o de un modelo inexistente.
         const cuerpoError = await respuesta.text();
         const resumen = cuerpoError.replace(/\s+/g, ' ').slice(0, 240);
+
+        // Rechazo de la instruccion de supresion del razonamiento.
+        //
+        // El proveedor responde con un mensaje generico, sin nombrar el campo
+        // que rechaza, de modo que la condicion no se apoya en el texto del
+        // error sino en el hecho de haber enviado esa instruccion. Repetir sin
+        // ella carece de riesgo, y la propia repeticion revela si el campo era
+        // la causa. El modulo la retira para el resto de la vida del proceso,
+        // en lugar de arrastrar una configuracion que el modelo no admite.
+        if (respuesta.status === 400 && conSupresion) {
+          suprimirRazonamiento = false;
+          console.warn(
+            'El proveedor rechazo la supresion del razonamiento previo. La instruccion se retira ' +
+              'y el intento se repite sin ella.'
+          );
+          return solicitar();
+        }
+
         const falla = new Error(`El servicio respondio con estado ${respuesta.status}. ${resumen}`);
         falla.pasajero = ESTADOS_PASAJEROS.includes(respuesta.status);
         throw falla;
@@ -284,7 +354,21 @@ async function clasificar(descripcion, fotografia = null) {
     }
 
     const texto = cuerpo?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const resultado = JSON.parse(texto);
+
+    let resultado;
+    try {
+      resultado = JSON.parse(texto);
+    } catch (errorFormato) {
+      // Un techo de generacion corto interrumpe la respuesta a media frase y
+      // el objeto JSON queda incompleto. El mensaje distingue esa condicion de
+      // una respuesta con formato equivocado, porque la correccion difiere.
+      const motivo = cuerpo?.candidates?.[0]?.finishReason;
+      throw new Error(
+        motivo === 'MAX_TOKENS'
+          ? `La respuesta excedio el techo de ${TECHO_GENERACION} unidades y quedo truncada. Elevar GEMINI_TECHO_TEXTO.`
+          : 'El servicio devolvio una respuesta que no constituye un objeto JSON.'
+      );
+    }
 
     const origen = conFotografia ? 'MIXTO' : 'TEXTO';
     const confianza = Number(resultado.nivelConfianza || 0);
