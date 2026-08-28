@@ -29,7 +29,11 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["CAMERA", "INTERNET"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +45,14 @@
           "photosPermission": "La aplicacion accede a la galeria para adjuntar fotografias del componente afectado.",
           "cameraPermission": "La aplicacion utiliza la camara para adjuntar la fotografia del componente afectado a la orden de trabajo."
         }
-      ]
-    ]
+      ],
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "75fb7f81-2c2b-44b2-aba3-704ca1e1ebe3"
+      }
+    },
+    "owner": "elias8a"
   }
 }

@@ -1,19 +1,23 @@
 /**
  * CONFIGURACION DE LA APLICACION MOVIL.
  *
- * La aplicacion conversa unicamente con el servidor del taller. La direccion
- * del servidor se resuelve de forma automatica a partir de la direccion donde
- * corre el empaquetador de Expo, con lo cual el telefono alcanza la
- * computadora dentro de la misma red inalambrica sin configuracion manual.
+ * La aplicacion conversa unicamente con el servidor del taller.
  *
- * Cuando el servidor resida en otra maquina o ya se encuentre desplegado en
- * internet, basta con escribir la direccion completa dentro de
- * DIRECCION_MANUAL, por ejemplo 'https://rapiservicios.onrender.com'.
+ * El servidor reside desde el 28 de agosto de 2026 dentro del proveedor
+ * Render, con lo cual el telefono del mecanico alcanza el servicio desde
+ * cualquier red y sin la computadora del desarrollador en ejecucion. Esa
+ * condicion resulta indispensable para la prueba dentro del taller, donde la
+ * red inalambrica pertenece al negocio.
+ *
+ * Cuando DIRECCION_MANUAL queda vacia, la aplicacion vuelve a resolver la
+ * direccion de forma automatica a partir de la maquina donde corre el
+ * empaquetador de Expo. Esa via sirve durante el desarrollo contra un servidor
+ * local y exige que el telefono comparta la red inalambrica.
  */
 
 import Constants from 'expo-constants';
 
-const DIRECCION_MANUAL = '';
+const DIRECCION_MANUAL = 'https://rapiservicios-api.onrender.com';
 
 const PUERTO_SERVIDOR = 3000;
 

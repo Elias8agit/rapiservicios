@@ -5,15 +5,12 @@
   },
   "build": {
     "taller": {
-      "//": "Perfil de trabajo del taller. Produce un archivo APK instalable de forma directa dentro de los telefonos del propietario y de los mecanicos, sin tienda de aplicaciones y sin el empaquetador de Expo en ejecucion.",
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal",
-      "channel": "taller"
+      "distribution": "internal"
     },
     "produccion": {
-      "//": "Perfil reservado para una eventual publicacion en la tienda de Google, que requiere el formato AAB y cuenta de desarrollador.",
       "android": {
         "buildType": "app-bundle"
       },
