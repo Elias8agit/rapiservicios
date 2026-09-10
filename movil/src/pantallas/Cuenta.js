@@ -11,11 +11,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
-import { Aviso, AvisoConReintento, Boton, Campo, Distintivo } from '../componentes/Comunes';
+import { Aviso, AvisoConReintento, Boton, Campo, Distintivo, SelectorSegmentado } from '../componentes/Comunes';
 import { useSesion } from '../contexto/Sesion';
-import { COLORES, ESPACIO, estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 
 export default function Cuenta() {
+  const { colores, estilos, modo, cambiarModo } = useTema();
   const { usuario, esPropietario, salir } = useSesion();
 
   const [personal, setPersonal] = useState([]);
@@ -77,11 +78,11 @@ export default function Cuenta() {
     <ScrollView style={estilos.pantalla} contentContainerStyle={estilos.contenido}>
       <View style={estilos.tarjeta}>
         <View style={{ alignItems: 'center', paddingVertical: ESPACIO.md }}>
-          <Ionicons name="person-circle-outline" size={64} color={COLORES.primario} />
+          <Ionicons name="person-circle-outline" size={64} color={colores.primario} />
           <Text style={[estilos.tarjetaTitulo, { marginTop: ESPACIO.sm }]}>{usuario?.nombre}</Text>
           <Text style={estilos.tarjetaDetalle}>{usuario?.correo}</Text>
           <View style={{ marginTop: ESPACIO.sm }}>
-            <Distintivo texto={usuario?.rol} color={COLORES.acento} />
+            <Distintivo texto={usuario?.rol} color={colores.acento} />
           </View>
         </View>
       </View>
@@ -92,10 +93,10 @@ export default function Cuenta() {
           {personal.map((p) => (
             <View key={p.id_usuario} style={{ marginTop: ESPACIO.sm }}>
               <View style={estilos.fila}>
-                <Text style={{ color: COLORES.texto, fontSize: 14 }}>{p.nombre_completo}</Text>
+                <Text style={{ color: colores.texto, fontSize: 14 }}>{p.nombre_completo}</Text>
                 <Distintivo
                   texto={p.rol?.nombre_rol}
-                  color={p.rol?.nombre_rol === 'PROPIETARIO' ? COLORES.primario : COLORES.primarioClaro}
+                  color={p.rol?.nombre_rol === 'PROPIETARIO' ? colores.primario : colores.primarioSuave}
                 />
               </View>
               <Text style={estilos.tarjetaDetalle}>
@@ -131,10 +132,33 @@ export default function Cuenta() {
         </View>
       ) : null}
 
+      {/* Apariencia. El taller trabaja al patio y a la oficina, con luz muy
+          distinta en cada sitio, de modo que la eleccion corresponde a quien
+          usa el telefono y no a una preferencia fijada de antemano. */}
+      <View style={estilos.tarjeta}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACIO.sm }}>
+          <Ionicons name="color-palette-outline" size={20} color={colores.acento} />
+          <Text style={estilos.tarjetaTitulo}>Apariencia</Text>
+        </View>
+        <Text style={[estilos.tarjetaDetalle, { marginBottom: ESPACIO.md }]}>
+          El modo claro se lee mejor bajo el sol del patio. El oscuro cansa menos la vista de
+          noche y dentro de la oficina.
+        </Text>
+        <SelectorSegmentado
+          valor={modo}
+          alCambiar={cambiarModo}
+          opciones={[
+            { valor: 'claro', texto: 'Claro', icono: 'sunny-outline' },
+            { valor: 'oscuro', texto: 'Oscuro', icono: 'moon-outline' },
+            { valor: 'sistema', texto: 'Telefono', icono: 'phone-portrait-outline' },
+          ]}
+        />
+      </View>
+
       <AvisoConReintento error={error} alReintentar={reintentar} ocupado={reintentando} />
       <Aviso mensaje={exito} tipo="exito" />
 
-      <Boton titulo="Cerrar sesion" alPresionar={salir} variante="acento" />
+      <Boton titulo="Cerrar sesion" alPresionar={salir} variante="secundario" icono="log-out-outline" />
     </ScrollView>
   );
 }

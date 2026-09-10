@@ -11,9 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
 import { Aviso, Boton, Campo } from '../componentes/Comunes';
-import { COLORES, ESPACIO, estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 
 export default function ConsultaCliente() {
+  const { colores, estilos } = useTema();
   const [codigo, setCodigo] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
@@ -67,7 +68,7 @@ export default function ConsultaCliente() {
                   marginTop: ESPACIO.md,
                   fontSize: 20,
                   fontWeight: '700',
-                  color: COLORES.acento,
+                  color: colores.acento,
                 }}
               >
                 {resultado.estado}
@@ -78,12 +79,12 @@ export default function ConsultaCliente() {
             <View style={estilos.tarjeta}>
               <View style={estilos.fila}>
                 <Text style={estilos.tarjetaTitulo}>Avance de revisiones</Text>
-                <Text style={{ color: COLORES.primario, fontWeight: '700' }}>{resultado.avance.porcentaje} %</Text>
+                <Text style={{ color: colores.primario, fontWeight: '700' }}>{resultado.avance.porcentaje} %</Text>
               </View>
               <View
                 style={{
                   height: 8,
-                  backgroundColor: COLORES.borde,
+                  backgroundColor: colores.borde,
                   borderRadius: 4,
                   marginTop: ESPACIO.sm,
                   overflow: 'hidden',
@@ -93,7 +94,7 @@ export default function ConsultaCliente() {
                   style={{
                     width: `${resultado.avance.porcentaje}%`,
                     height: 8,
-                    backgroundColor: COLORES.exito,
+                    backgroundColor: colores.exito,
                   }}
                 />
               </View>
@@ -102,9 +103,9 @@ export default function ConsultaCliente() {
                   <Ionicons
                     name={r.completada ? 'checkmark-circle' : 'ellipse-outline'}
                     size={18}
-                    color={r.completada ? COLORES.exito : COLORES.textoSuave}
+                    color={r.completada ? colores.exito : colores.textoSuave}
                   />
-                  <Text style={{ marginLeft: 8, color: COLORES.texto, fontSize: 13, flex: 1 }}>{r.nombre}</Text>
+                  <Text style={{ marginLeft: 8, color: colores.texto, fontSize: 13, flex: 1 }}>{r.nombre}</Text>
                 </View>
               ))}
               {resultado.tiempoEstimadoMin ? (

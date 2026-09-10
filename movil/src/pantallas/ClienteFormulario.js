@@ -7,9 +7,10 @@ import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 
 import { api } from '../api/cliente';
 import { Aviso, Boton, Campo } from '../componentes/Comunes';
-import { estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 
 export default function ClienteFormulario({ navigation, route }) {
+  const { colores, estilos } = useTema();
   const cliente = route.params?.cliente || null;
   const esModificacion = Boolean(cliente);
 

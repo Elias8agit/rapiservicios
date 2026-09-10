@@ -145,8 +145,16 @@ enrutador.post('/', async (peticion, respuesta) => {
     descripcionFalla,
     kilometraje,
     fotografia = null,
+    fotografias = null,
     observaciones = null,
   } = peticion.body || {};
+
+  // La aplicacion movil admite varias fotografias por orden desde el 10 de
+  // septiembre de 2026. El campo singular se conserva para las versiones de la
+  // aplicacion que todavia lo envian.
+  const listaFotografias = (Array.isArray(fotografias) ? fotografias : fotografia ? [fotografia] : [])
+    .filter((f) => f && f.datos)
+    .slice(0, 6);
 
   if (!idVehiculo) {
     return respuesta.status(400).json({ error: 'El vehiculo resulta obligatorio.' });
@@ -155,7 +163,7 @@ enrutador.post('/', async (peticion, respuesta) => {
   // Longitud minima de la descripcion. Una fotografia aporta informacion por
   // si misma y la capa de interpretacion la aprovecha, de modo que la
   // exigencia sobre el texto disminuye cuando el mecanico adjunta imagen.
-  const hayFotografia = Boolean(fotografia && fotografia.datos);
+  const hayFotografia = listaFotografias.length > 0;
   const minimoTexto = hayFotografia ? 4 : 10;
   if (!descripcionFalla || String(descripcionFalla).trim().length < minimoTexto) {
     return respuesta.status(400).json({
@@ -180,7 +188,10 @@ enrutador.post('/', async (peticion, respuesta) => {
 
     // Capa de interpretacion. La placa del vehiculo permanece dentro de la
     // base de datos del taller y nunca viaja hacia el servicio externo.
-    const interpretacion = await clasificar(String(descripcionFalla), fotografia);
+    // La interpretacion recibe unicamente la primera imagen. Enviar varias
+    // multiplicaria la demora del servicio externo sin aportar certeza: la
+    // primera es la que el mecanico eligio para mostrar la falla.
+    const interpretacion = await clasificar(String(descripcionFalla), listaFotografias[0] || null);
 
     // NIVEL 1. La categoria pertenece al catalogo del taller, de modo que la
     // base de conocimiento propia decide las tareas y el tiempo.
@@ -283,21 +294,25 @@ enrutador.post('/', async (peticion, respuesta) => {
       comentario: 'Ingreso del vehiculo y generacion del diagnostico sugerido.',
     });
 
-    // Evidencia fotografica de la etapa de ingreso.
-    let rutaFotografia = null;
-    if (fotografia && fotografia.datos) {
+    // Evidencia fotografica de la etapa de ingreso. Cada imagen se resguarda
+    // dentro de su propio intento: la falla de una no debe descartar a las
+    // demas ni invalidar la orden, que ya quedo registrada.
+    let fotografiasResguardadas = 0;
+    for (const [indice, imagen] of listaFotografias.entries()) {
       try {
-        rutaFotografia = await subirFotografia(fotografia, orden.id_orden, 'INGRESO');
+        const ruta = await subirFotografia(imagen, orden.id_orden, 'INGRESO');
         await clienteServicio.from('fotografia').insert({
           id_orden: orden.id_orden,
           id_usuario: peticion.usuario.idUsuario,
-          ruta_almacenamiento: rutaFotografia,
+          ruta_almacenamiento: ruta,
           etapa: 'INGRESO',
-          descripcion: 'Componente reportado por el mecanico.',
+          descripcion:
+            indice === 0
+              ? 'Componente reportado por el mecanico. Acompano a la interpretacion.'
+              : 'Evidencia adicional del ingreso.',
         });
+        fotografiasResguardadas += 1;
       } catch (errorFoto) {
-        // La orden conserva validez aunque la imagen no se resguarde.
-        rutaFotografia = null;
         console.warn(`Fotografia sin resguardar en la orden ${orden.id_orden}: ${errorFoto.message}`);
       }
     }
@@ -316,7 +331,8 @@ enrutador.post('/', async (peticion, respuesta) => {
       diagnostico,
       tareasSugeridas,
       nivelAtencion: diagnostico.aplicada ? 1 : tareasSugeridas.length ? 2 : 0,
-      fotografiaResguardada: Boolean(rutaFotografia),
+      fotografiasResguardadas,
+      fotografiaResguardada: fotografiasResguardadas > 0,
     });
   } catch (error) {
     return respuesta.status(500).json({ error: 'Ocurrio una falla al registrar la orden.', detalle: error.message });

@@ -14,10 +14,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
 import { AvisoConReintento, Boton, Cargando, Distintivo } from '../componentes/Comunes';
-import { COLORES, ESPACIO, estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 import { ESTADOS_ORDEN } from '../../configuracion';
 
 export default function OrdenDetalle({ route }) {
+  const { colores, estilos } = useTema();
   const { idOrden } = route.params;
 
   const [datos, setDatos] = useState(null);
@@ -129,7 +130,7 @@ export default function OrdenDetalle({ route }) {
       <View style={estilos.tarjeta}>
         <View style={estilos.fila}>
           <Text style={estilos.titulo}>{orden.codigo_consulta}</Text>
-          <Distintivo texto={orden.estado?.nombre_estado} color={COLORES.primarioClaro} />
+          <Distintivo texto={orden.estado?.nombre_estado} color={colores.primarioSuave} />
         </View>
         <Text style={estilos.tarjetaDetalle}>
           {orden.vehiculo?.placa} · {orden.vehiculo?.marca} {orden.vehiculo?.linea} {orden.vehiculo?.modelo_anio}
@@ -137,7 +138,7 @@ export default function OrdenDetalle({ route }) {
         <Text style={estilos.tarjetaDetalle}>Cliente: {orden.vehiculo?.cliente?.nombre_completo}</Text>
         <Text style={estilos.tarjetaDetalle}>Telefono: {orden.vehiculo?.cliente?.telefono}</Text>
         <Text style={estilos.tarjetaDetalle}>Recibio: {orden.usuario?.nombre_completo}</Text>
-        <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.sm, color: COLORES.texto }]}>
+        <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.sm, color: colores.texto }]}>
           {orden.descripcion_falla}
         </Text>
       </View>
@@ -153,7 +154,7 @@ export default function OrdenDetalle({ route }) {
 
             return (
               <View key={d.id_diagnostico} style={{ marginTop: ESPACIO.sm }}>
-                <Text style={{ color: COLORES.texto, fontSize: 15, fontWeight: '600' }}>
+                <Text style={{ color: colores.texto, fontSize: 15, fontWeight: '600' }}>
                   {d.categoria?.nombre_categoria ||
                     d.sistema_sugerido ||
                     'Sin correspondencia dentro del catalogo'}
@@ -171,7 +172,7 @@ export default function OrdenDetalle({ route }) {
                 ) : null}
 
                 {d.hallazgo ? (
-                  <Text style={[estilos.tarjetaDetalle, { color: COLORES.texto, marginTop: ESPACIO.xs }]}>
+                  <Text style={[estilos.tarjetaDetalle, { color: colores.texto, marginTop: ESPACIO.xs }]}>
                     {d.hallazgo}
                   </Text>
                 ) : null}
@@ -194,13 +195,13 @@ export default function OrdenDetalle({ route }) {
                     style={{
                       marginTop: ESPACIO.sm,
                       padding: ESPACIO.sm,
-                      borderRadius: 8,
-                      backgroundColor: '#FFF4E5',
+                      borderRadius: RADIO.sm,
+                      backgroundColor: colores.avisoTenue,
                       borderWidth: 1,
-                      borderColor: '#F0D2A8',
+                      borderColor: colores.aviso,
                     }}
                   >
-                    <Text style={{ color: COLORES.aviso, fontSize: 12, lineHeight: 17 }}>
+                    <Text style={{ color: colores.aviso, fontSize: 12, lineHeight: 17 }}>
                       Esta lectura proviene del asistente, no de las reglas del taller. La averia
                       queda fuera del catalogo de doce categorias. Conviene confirmarla con criterio
                       propio antes de trabajar.
@@ -246,10 +247,10 @@ export default function OrdenDetalle({ route }) {
                 <Ionicons
                   name={t.completada ? 'checkbox' : 'square-outline'}
                   size={22}
-                  color={t.completada ? COLORES.exito : COLORES.textoSuave}
+                  color={t.completada ? colores.exito : colores.textoSuave}
                 />
                 <View style={{ marginLeft: ESPACIO.sm, flex: 1 }}>
-                  <Text style={{ color: COLORES.texto, fontSize: 14 }}>{nombre}</Text>
+                  <Text style={{ color: colores.texto, fontSize: 14 }}>{nombre}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                     <Text style={estilos.tarjetaDetalle}>{minutos} minutos estimados</Text>
                     {sugerida ? (
@@ -259,12 +260,12 @@ export default function OrdenDetalle({ route }) {
                           paddingHorizontal: 7,
                           paddingVertical: 2,
                           borderRadius: 10,
-                          backgroundColor: '#FFF4E5',
+                          backgroundColor: colores.avisoTenue,
                           borderWidth: 1,
-                          borderColor: '#F0D2A8',
+                          borderColor: colores.aviso,
                         }}
                       >
-                        <Text style={{ color: COLORES.aviso, fontSize: 10, fontWeight: '700' }}>
+                        <Text style={{ color: colores.aviso, fontSize: 10, fontWeight: '700' }}>
                           SUGERIDA
                         </Text>
                       </View>
@@ -286,7 +287,7 @@ export default function OrdenDetalle({ route }) {
         <View style={estilos.fila}>
           <Text style={estilos.tarjetaTitulo}>Evidencia fotografica</Text>
           <TouchableOpacity onPress={agregarEvidencia}>
-            <Ionicons name="camera" size={22} color={COLORES.primario} />
+            <Ionicons name="camera" size={22} color={colores.primario} />
           </TouchableOpacity>
         </View>
         {fotografias.length === 0 ? (
@@ -303,12 +304,12 @@ export default function OrdenDetalle({ route }) {
                       width: 130,
                       height: 130,
                       borderRadius: 10,
-                      backgroundColor: COLORES.borde,
+                      backgroundColor: colores.borde,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Ionicons name="image-outline" size={28} color={COLORES.textoSuave} />
+                    <Ionicons name="image-outline" size={28} color={colores.textoSuave} />
                   </View>
                 )}
                 <Text style={[estilos.tarjetaDetalle, { textAlign: 'center' }]}>{f.etapa}</Text>
@@ -322,7 +323,7 @@ export default function OrdenDetalle({ route }) {
         <Text style={estilos.tarjetaTitulo}>Bitacora de estados</Text>
         {bitacora.map((b) => (
           <View key={b.id_bitacora} style={{ marginTop: ESPACIO.sm }}>
-            <Text style={{ color: COLORES.texto, fontSize: 14 }}>{b.estado?.nombre_estado}</Text>
+            <Text style={{ color: colores.texto, fontSize: 14 }}>{b.estado?.nombre_estado}</Text>
             <Text style={estilos.tarjetaDetalle}>
               {new Date(b.fecha_cambio).toLocaleString()} · {b.usuario?.nombre_completo}
             </Text>
@@ -338,7 +339,7 @@ export default function OrdenDetalle({ route }) {
           titulo={`Avanzar hacia ${siguienteEstado}`}
           alPresionar={() => avanzarEstado(siguienteEstado)}
           ocupado={ocupado}
-          variante="acento"
+          variante="principal"
         />
       ) : (
         <Text style={[estilos.vacio, { marginTop: ESPACIO.md }]}>La orden concluyo el ciclo de estados.</Text>

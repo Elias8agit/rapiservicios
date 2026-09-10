@@ -21,9 +21,10 @@ import {
 
 import { api } from '../api/cliente';
 import { Aviso, Boton, Campo, Cargando } from '../componentes/Comunes';
-import { COLORES, ESPACIO, estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 
 export default function VehiculoFormulario({ navigation, route }) {
+  const { colores, estilos } = useTema();
   const vehiculo = route.params?.vehiculo || null;
   const esModificacion = Boolean(vehiculo);
 
@@ -87,7 +88,7 @@ export default function VehiculoFormulario({ navigation, route }) {
       <ScrollView contentContainerStyle={estilos.contenido}>
         <Text style={estilos.etiqueta}>Cliente propietario</Text>
         <TouchableOpacity style={estilos.campo} onPress={() => setVentanaVisible(true)} activeOpacity={0.7}>
-          <Text style={{ color: cliente ? COLORES.texto : COLORES.textoSuave, fontSize: 15 }}>
+          <Text style={{ color: cliente ? colores.texto : colores.textoSuave, fontSize: 15 }}>
             {cliente ? cliente.nombre_completo : 'Seleccionar cliente'}
           </Text>
         </TouchableOpacity>
@@ -138,6 +139,7 @@ export default function VehiculoFormulario({ navigation, route }) {
 
 /** Ventana de busqueda y seleccion de clientes. */
 export function SelectorCliente({ visible, alCerrar, alSeleccionar }) {
+  const { colores, estilos } = useTema();
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -166,13 +168,13 @@ export function SelectorCliente({ visible, alCerrar, alSeleccionar }) {
           <View style={estilos.fila}>
             <Text style={estilos.titulo}>Seleccionar cliente</Text>
             <TouchableOpacity onPress={alCerrar}>
-              <Text style={{ color: COLORES.primario, fontWeight: '600' }}>Cerrar</Text>
+              <Text style={{ color: colores.primario, fontWeight: '600' }}>Cerrar</Text>
             </TouchableOpacity>
           </View>
           <TextInput
             style={estilos.campo}
             placeholder="Buscar por nombre o telefono"
-            placeholderTextColor={COLORES.textoSuave}
+            placeholderTextColor={colores.textoSuave}
             value={busqueda}
             onChangeText={setBusqueda}
           />

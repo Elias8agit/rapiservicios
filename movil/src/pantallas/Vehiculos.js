@@ -5,13 +5,16 @@
 import React, { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
 import { AvisoConReintento, Cargando, Distintivo } from '../componentes/Comunes';
-import { COLORES, ESPACIO, estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 
 export default function Vehiculos({ navigation }) {
+  const { colores, estilos, sombra } = useTema();
+  const margenes = useSafeAreaInsets();
   const [vehiculos, setVehiculos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -48,7 +51,7 @@ export default function Vehiculos({ navigation }) {
         <TextInput
           style={estilos.campo}
           placeholder="Buscar por placa, marca o linea"
-          placeholderTextColor={COLORES.textoSuave}
+          placeholderTextColor={colores.textoSuave}
           value={busqueda}
           onChangeText={setBusqueda}
           onSubmitEditing={() => consultar(busqueda)}
@@ -64,7 +67,7 @@ export default function Vehiculos({ navigation }) {
         <FlatList
           data={vehiculos}
           keyExtractor={(item) => String(item.id_vehiculo)}
-          contentContainerStyle={{ paddingHorizontal: ESPACIO.md, paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: ESPACIO.md, paddingBottom: 110 + margenes.bottom }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={() => consultar(busqueda)} />}
           ListEmptyComponent={<Text style={estilos.vacio}>Sin vehiculos registrados todavia.</Text>}
           renderItem={({ item }) => (
@@ -94,14 +97,14 @@ export default function Vehiculos({ navigation }) {
         style={{
           position: 'absolute',
           right: ESPACIO.lg,
-          bottom: ESPACIO.lg,
-          backgroundColor: COLORES.acento,
+          bottom: ESPACIO.md + margenes.bottom,
+          backgroundColor: colores.acento,
           width: 58,
           height: 58,
           borderRadius: 29,
           alignItems: 'center',
           justifyContent: 'center',
-          elevation: 4,
+          ...sombra(4),
         }}
         onPress={() => navigation.navigate('VehiculoFormulario', {})}
       >

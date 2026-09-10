@@ -175,6 +175,14 @@ export async function despertarServidor(alAvanzar) {
     try {
       return await peticion('/salud', {}, { limite: LIMITE_DESPERTAR_INTENTO, reintentos: 0 });
     } catch (error) {
+      // El servidor atiende pero informa que la base de datos no responde. Es
+      // una condicion distinta de la falta de red y amerita otro mensaje: el
+      // proveedor de datos suspende los proyectos sin uso y la reanudacion se
+      // pide desde su panel, no desde el telefono.
+      if (error.estado === 503) {
+        return { estado: 'degradado', detalle: error.detalle || error.message };
+      }
+
       // Una respuesta con estado de error igual acredita que el servicio ya
       // atiende peticiones, de modo que el despertar concluye.
       if (error.estado && error.estado < 500) return { estado: 'operativo' };

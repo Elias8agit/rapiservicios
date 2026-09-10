@@ -24,6 +24,7 @@ export function ProveedorSesion({ children }) {
   // cuando el presupuesto se agota sin respuesta.
   const [enlace, setEnlace] = useState('ENLAZANDO');
   const [segundosEspera, setSegundosEspera] = useState(0);
+  const [detalleEnlace, setDetalleEnlace] = useState('');
 
   /**
    * Arranque de la aplicacion.
@@ -36,10 +37,22 @@ export function ProveedorSesion({ children }) {
   async function arrancar() {
     setEnlace('ENLAZANDO');
     setSegundosEspera(0);
+    setDetalleEnlace('');
     setCargando(true);
 
     try {
-      await despertarServidor(setSegundosEspera);
+      const estadoServidor = await despertarServidor(setSegundosEspera);
+
+      // El servidor responde pero la base de datos no. Ninguna pantalla opera
+      // en esa condicion, de modo que la aplicacion lo informa en lugar de
+      // dejar que la persona lo descubra al intentar ingresar.
+      if (estadoServidor?.estado === 'degradado' || estadoServidor?.baseDatos === 'sin respuesta') {
+        setDetalleEnlace(estadoServidor.detalle || '');
+        setEnlace('DEGRADADO');
+        setCargando(false);
+        return;
+      }
+
       setEnlace('ENLAZADO');
     } catch (error) {
       setEnlace('SIN_ENLACE');
@@ -107,13 +120,14 @@ export function ProveedorSesion({ children }) {
       cargando,
       enlace,
       segundosEspera,
+      detalleEnlace,
       reintentarEnlace: arrancar,
       ingresar,
       salir,
       usuario: sesion?.usuario || null,
       esPropietario: sesion?.usuario?.rol === 'PROPIETARIO',
     }),
-    [sesion, cargando, enlace, segundosEspera]
+    [sesion, cargando, enlace, segundosEspera, detalleEnlace]
   );
 
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>;

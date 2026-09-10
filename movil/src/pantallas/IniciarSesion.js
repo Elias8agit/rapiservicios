@@ -7,10 +7,11 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, Vie
 
 import { Aviso, Boton, Campo } from '../componentes/Comunes';
 import { useSesion } from '../contexto/Sesion';
-import { COLORES, ESPACIO, estilos } from '../tema';
+import { ESPACIO, RADIO, useTema } from '../tema';
 import { NOMBRE_TALLER, URL_API } from '../../configuracion';
 
 export default function IniciarSesion({ navigation }) {
+  const { colores, estilos } = useTema();
   const { ingresar } = useSesion();
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
@@ -45,7 +46,7 @@ export default function IniciarSesion({ navigation }) {
               width: 76,
               height: 76,
               borderRadius: 20,
-              backgroundColor: COLORES.primario,
+              backgroundColor: colores.primario,
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: ESPACIO.md,
@@ -82,12 +83,12 @@ export default function IniciarSesion({ navigation }) {
           style={{ marginTop: ESPACIO.lg, alignItems: 'center' }}
           onPress={() => navigation.navigate('ConsultaCliente')}
         >
-          <Text style={{ color: COLORES.primario, fontSize: 14, fontWeight: '600' }}>
+          <Text style={{ color: colores.primario, fontSize: 14, fontWeight: '600' }}>
             Consultar el estado de una orden
           </Text>
         </TouchableOpacity>
 
-        <Text style={{ marginTop: ESPACIO.xl, fontSize: 11, color: COLORES.textoSuave, textAlign: 'center' }}>
+        <Text style={{ marginTop: ESPACIO.xl, fontSize: 11, color: colores.textoSuave, textAlign: 'center' }}>
           Servidor: {URL_API}
         </Text>
       </ScrollView>

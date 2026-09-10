@@ -2,10 +2,10 @@
   "expo": {
     "name": "Rapiservicios",
     "slug": "rapiservicios",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#000000",
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -22,18 +22,14 @@
     },
     "android": {
       "package": "gt.edu.umg.rapiservicios",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.INTERNET",
-        "android.permission.RECORD_AUDIO"
-      ]
+      "permissions": ["CAMERA", "INTERNET"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -45,14 +41,7 @@
           "photosPermission": "La aplicacion accede a la galeria para adjuntar fotografias del componente afectado.",
           "cameraPermission": "La aplicacion utiliza la camara para adjuntar la fotografia del componente afectado a la orden de trabajo."
         }
-      ],
-      "expo-font"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "75fb7f81-2c2b-44b2-aba3-704ca1e1ebe3"
-      }
-    },
-    "owner": "elias8a"
+      ]
+    ]
   }
 }

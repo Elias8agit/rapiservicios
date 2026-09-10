@@ -15,15 +15,15 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ProveedorSesion, useSesion } from './src/contexto/Sesion';
 import PantallaEnlace from './src/componentes/PantallaEnlace';
-import { COLORES } from './src/tema';
+import { ProveedorTema, useTema } from './src/tema';
 
 import IniciarSesion from './src/pantallas/IniciarSesion';
 import ConsultaCliente from './src/pantallas/ConsultaCliente';
@@ -39,15 +39,22 @@ import Cuenta from './src/pantallas/Cuenta';
 const Pila = createNativeStackNavigator();
 const Pestanas = createBottomTabNavigator();
 
-const OPCIONES_ENCABEZADO = {
-  headerStyle: { backgroundColor: COLORES.primario },
-  headerTintColor: '#FFFFFF',
-  headerTitleStyle: { fontWeight: '700' },
-};
+/** Opciones del encabezado, derivadas de la paleta activa. */
+function usarOpcionesEncabezado() {
+  const { colores } = useTema();
+  return {
+    headerStyle: { backgroundColor: colores.primario },
+    headerTintColor: '#FFFFFF',
+    headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+    headerShadowVisible: false,
+    contentStyle: { backgroundColor: colores.fondo },
+  };
+}
 
 function PilaOrdenes() {
+  const opciones = usarOpcionesEncabezado();
   return (
-    <Pila.Navigator screenOptions={OPCIONES_ENCABEZADO}>
+    <Pila.Navigator screenOptions={opciones}>
       <Pila.Screen name="OrdenesLista" component={Ordenes} options={{ title: 'Ordenes de trabajo' }} />
       <Pila.Screen name="OrdenNueva" component={OrdenNueva} options={{ title: 'Ingreso de vehiculo' }} />
       <Pila.Screen name="OrdenDetalle" component={OrdenDetalle} options={{ title: 'Detalle de la orden' }} />
@@ -56,8 +63,9 @@ function PilaOrdenes() {
 }
 
 function PilaClientes() {
+  const opciones = usarOpcionesEncabezado();
   return (
-    <Pila.Navigator screenOptions={OPCIONES_ENCABEZADO}>
+    <Pila.Navigator screenOptions={opciones}>
       <Pila.Screen name="ClientesLista" component={Clientes} options={{ title: 'Clientes' }} />
       <Pila.Screen name="ClienteFormulario" component={ClienteFormulario} />
     </Pila.Navigator>
@@ -65,8 +73,9 @@ function PilaClientes() {
 }
 
 function PilaVehiculos() {
+  const opciones = usarOpcionesEncabezado();
   return (
-    <Pila.Navigator screenOptions={OPCIONES_ENCABEZADO}>
+    <Pila.Navigator screenOptions={opciones}>
       <Pila.Screen name="VehiculosLista" component={Vehiculos} options={{ title: 'Vehiculos' }} />
       <Pila.Screen name="VehiculoFormulario" component={VehiculoFormulario} />
     </Pila.Navigator>
@@ -74,8 +83,9 @@ function PilaVehiculos() {
 }
 
 function PilaCuenta() {
+  const opciones = usarOpcionesEncabezado();
   return (
-    <Pila.Navigator screenOptions={OPCIONES_ENCABEZADO}>
+    <Pila.Navigator screenOptions={opciones}>
       <Pila.Screen name="CuentaInicio" component={Cuenta} options={{ title: 'Cuenta' }} />
     </Pila.Navigator>
   );
@@ -89,14 +99,27 @@ const ICONOS = {
 };
 
 function NavegacionTaller() {
+  const { colores } = useTema();
+  const margenes = useSafeAreaInsets();
+
   return (
     <Pestanas.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: COLORES.primario,
-        tabBarInactiveTintColor: COLORES.textoSuave,
-        tabBarStyle: { height: 62, paddingBottom: 8, paddingTop: 6 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarActiveTintColor: colores.acento,
+        tabBarInactiveTintColor: colores.textoSuave,
+        // La altura incorpora el margen inferior del dispositivo. Sin ese
+        // margen la barra queda por debajo de los botones de navegacion del
+        // telefono y las pestanas resultan inalcanzables.
+        tabBarStyle: {
+          height: 60 + margenes.bottom,
+          paddingBottom: margenes.bottom + 6,
+          paddingTop: 8,
+          backgroundColor: colores.superficie,
+          borderTopColor: colores.borde,
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
         tabBarIcon: ({ focused, color, size }) => {
           const [activo, inactivo] = ICONOS[route.name] || ICONOS.Cuenta;
           return <Ionicons name={focused ? activo : inactivo} size={size} color={color} />;
@@ -112,8 +135,9 @@ function NavegacionTaller() {
 }
 
 function NavegacionAcceso() {
+  const opciones = usarOpcionesEncabezado();
   return (
-    <Pila.Navigator screenOptions={OPCIONES_ENCABEZADO}>
+    <Pila.Navigator screenOptions={opciones}>
       <Pila.Screen name="IniciarSesion" component={IniciarSesion} options={{ headerShown: false }} />
       <Pila.Screen name="ConsultaCliente" component={ConsultaCliente} options={{ title: 'Consulta del cliente' }} />
     </Pila.Navigator>
@@ -121,36 +145,66 @@ function NavegacionAcceso() {
 }
 
 function Raiz() {
-  const { sesion, cargando, enlace, segundosEspera, reintentarEnlace } = useSesion();
+  const { sesion, cargando, enlace, segundosEspera, detalleEnlace, reintentarEnlace } = useSesion();
+  const { colores, esOscuro } = useTema();
 
   // El enlace con el servidor antecede a cualquier pantalla: sin servicio
   // disponible, ni el ingreso ni la sesion resguardada resultan operables.
-  if (enlace === 'ENLAZANDO' || enlace === 'SIN_ENLACE') {
-    return <PantallaEnlace estado={enlace} segundos={segundosEspera} alReintentar={reintentarEnlace} />;
+  if (enlace !== 'ENLAZADO') {
+    return (
+      <PantallaEnlace
+        estado={enlace}
+        segundos={segundosEspera}
+        detalle={detalleEnlace}
+        alReintentar={reintentarEnlace}
+      />
+    );
   }
 
   if (cargando) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORES.fondo }}>
-        <ActivityIndicator size="large" color={COLORES.primario} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colores.fondo }}>
+        <ActivityIndicator size="large" color={colores.acento} />
       </View>
     );
   }
 
+  // El tema de la navegacion acompana al de la aplicacion, de manera que el
+  // fondo de las transiciones entre pantallas no destelle en blanco.
+  const temaNavegacion = {
+    ...(esOscuro ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(esOscuro ? DarkTheme : DefaultTheme).colors,
+      primary: colores.acento,
+      background: colores.fondo,
+      card: colores.superficie,
+      text: colores.texto,
+      border: colores.borde,
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={temaNavegacion}>
       {sesion ? <NavegacionTaller /> : <NavegacionAcceso />}
     </NavigationContainer>
   );
 }
 
+/** Barra de estado del sistema, con el contraste que pide la paleta activa. */
+function BarraEstado() {
+  const { esOscuro } = useTema();
+  return <StatusBar style={esOscuro ? 'light' : 'light'} backgroundColor="transparent" translucent />;
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
-      <ProveedorSesion>
-        <Raiz />
-      </ProveedorSesion>
+      <ProveedorTema>
+        <BarraEstado />
+        <ProveedorSesion>
+          <Raiz />
+        </ProveedorSesion>
+      </ProveedorTema>
     </SafeAreaProvider>
   );
 }
