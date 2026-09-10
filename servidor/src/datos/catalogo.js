@@ -47,45 +47,58 @@ const TAREAS = [
   { idTarea: 24, nombre: 'Prueba de compresor de aire',             minutos: 30 },
 ];
 
+/**
+ * Base de conocimiento lexica del taller.
+ *
+ * La comparacion opera por contencion de texto sobre la descripcion
+ * normalizada, de modo que conviene la raiz antes que la forma conjugada:
+ * "sobrecalent" abarca sobrecalentamiento, sobrecalentado y sobrecalentar.
+ *
+ * Las expresiones no se repiten entre categorias. El clasificador de respaldo
+ * suma coincidencias, y una palabra compartida reparte el puntaje.
+ *
+ * Ampliada el 2026-09-10 tras la orden RSKFQB65: "Reparacion de caja mecanica"
+ * no coincidia con ninguna regla, porque transmision solo cubria "embrague".
+ */
 const REGLAS = [
   { idRegla: 1,  idCategoria: 1,  nombre: 'Ruido metalico al frenar',
-    condicion: { palabras: ['chilla', 'rechina', 'ruido al frenar', 'metalico'], kmMinimo: 0 },
+    condicion: { palabras: ['chilla', 'rechina', 'ruido al frenar', 'metalico', 'pastilla', 'disco de freno', 'balata'], kmMinimo: 0 },
     nivelConfianza: 0.900, prioridad: 1, activa: true, tareas: [1, 2, 3] },
   { idRegla: 2,  idCategoria: 1,  nombre: 'Pedal esponjoso o hundido',
-    condicion: { palabras: ['pedal', 'esponjoso', 'se hunde', 'sin presion'], kmMinimo: 0 },
+    condicion: { palabras: ['pedal', 'esponjoso', 'se hunde', 'sin presion', 'no frena', 'liquido de freno'], kmMinimo: 0 },
     nivelConfianza: 0.880, prioridad: 1, activa: true, tareas: [2, 3, 4] },
   { idRegla: 3,  idCategoria: 2,  nombre: 'Golpeteo en superficie irregular',
-    condicion: { palabras: ['golpetea', 'brinca', 'tumbo', 'suspension'], kmMinimo: 0 },
+    condicion: { palabras: ['golpetea', 'brinca', 'tumbo', 'suspension', 'amortiguador', 'resorte', 'salta en los baches'], kmMinimo: 0 },
     nivelConfianza: 0.850, prioridad: 2, activa: true, tareas: [5, 6, 7] },
   { idRegla: 4,  idCategoria: 3,  nombre: 'Vehiculo desviado de trayectoria',
-    condicion: { palabras: ['jala', 'se va', 'desvia', 'direccion dura'], kmMinimo: 0 },
+    condicion: { palabras: ['jala', 'se va', 'desvia', 'direccion dura', 'timon', 'volante', 'alineacion', 'rotula', 'terminal'], kmMinimo: 0 },
     nivelConfianza: 0.870, prioridad: 2, activa: true, tareas: [6, 7, 22] },
   { idRegla: 5,  idCategoria: 4,  nombre: 'Perdida de potencia del motor',
-    condicion: { palabras: ['no jala', 'sin fuerza', 'pierde potencia', 'cascabeleo'], kmMinimo: 0 },
+    condicion: { palabras: ['no jala', 'sin fuerza', 'pierde potencia', 'cascabeleo', 'tironea', 'jalonea', 'se apaga', 'falla el motor', 'aceite'], kmMinimo: 0 },
     nivelConfianza: 0.840, prioridad: 1, activa: true, tareas: [8, 9, 13] },
   { idRegla: 6,  idCategoria: 5,  nombre: 'Arranque deficiente',
-    condicion: { palabras: ['no enciende', 'cuesta arrancar', 'falla al arrancar'], kmMinimo: 0 },
+    condicion: { palabras: ['no enciende', 'no arranca', 'cuesta arrancar', 'falla al arrancar', 'marcha', 'bujia', 'no da chispa'], kmMinimo: 0 },
     nivelConfianza: 0.860, prioridad: 1, activa: true, tareas: [8, 10, 11] },
   { idRegla: 7,  idCategoria: 6,  nombre: 'Falla de carga electrica',
-    condicion: { palabras: ['bateria', 'se descarga', 'luz de bateria', 'no da corriente'], kmMinimo: 0 },
+    condicion: { palabras: ['bateria', 'se descarga', 'luz de bateria', 'no da corriente', 'alternador', 'fusible', 'sistema electrico', 'las luces'], kmMinimo: 0 },
     nivelConfianza: 0.890, prioridad: 1, activa: true, tareas: [11, 12, 8] },
-  { idRegla: 8,  idCategoria: 7,  nombre: 'Deslizamiento del embrague',
-    condicion: { palabras: ['embrague', 'patina', 'no entra cambio', 'clutch'], kmMinimo: 0 },
+  { idRegla: 8,  idCategoria: 7,  nombre: 'Falla de la transmision',
+    condicion: { palabras: ['embrague', 'patina', 'no entra cambio', 'clutch', 'caja mecanica', 'caja de cambios', 'caja de velocidades', 'transmision', 'velocidades', 'sincronizado', 'palanca de cambios'], kmMinimo: 0 },
     nivelConfianza: 0.850, prioridad: 2, activa: true, tareas: [16, 17] },
   { idRegla: 9,  idCategoria: 8,  nombre: 'Sobrecalentamiento del motor',
-    condicion: { palabras: ['calienta', 'temperatura', 'hierve', 'vapor'], kmMinimo: 0 },
+    condicion: { palabras: ['calienta', 'calentamiento', 'sobrecalent', 'temperatura', 'hierve', 'vapor', 'radiador', 'refrigerante', 'ventilador'], kmMinimo: 0 },
     nivelConfianza: 0.910, prioridad: 1, activa: true, tareas: [14, 15, 13] },
   { idRegla: 10, idCategoria: 9,  nombre: 'Consumo excesivo de combustible',
-    condicion: { palabras: ['gasta mucho', 'consumo', 'gasolina', 'rinde poco'], kmMinimo: 0 },
+    condicion: { palabras: ['gasta mucho', 'consumo', 'gasolina', 'rinde poco', 'inyector', 'combustible', 'bomba de gasolina'], kmMinimo: 0 },
     nivelConfianza: 0.800, prioridad: 3, activa: true, tareas: [18, 19, 8] },
   { idRegla: 11, idCategoria: 10, nombre: 'Ruido o fuga en el escape',
-    condicion: { palabras: ['escape', 'ruidoso', 'truena', 'humo negro'], kmMinimo: 0 },
+    condicion: { palabras: ['escape', 'ruidoso', 'truena', 'humo negro', 'mofle', 'silenciador', 'catalizador'], kmMinimo: 0 },
     nivelConfianza: 0.820, prioridad: 3, activa: true, tareas: [20, 8] },
   { idRegla: 12, idCategoria: 11, nombre: 'Desgaste irregular de neumaticos',
-    condicion: { palabras: ['llanta', 'desgaste', 'vibra', 'desbalance'], kmMinimo: 0 },
+    condicion: { palabras: ['llanta', 'neumatico', 'desgaste', 'vibra', 'desbalance', 'balanceo', 'rin', 'presion de aire'], kmMinimo: 0 },
     nivelConfianza: 0.830, prioridad: 2, activa: true, tareas: [21, 22, 7] },
   { idRegla: 13, idCategoria: 12, nombre: 'Aire acondicionado sin enfriamiento',
-    condicion: { palabras: ['aire', 'no enfria', 'clima', 'compresor'], kmMinimo: 0 },
+    condicion: { palabras: ['aire acondicionado', 'no enfria', 'clima', 'compresor', 'gas del aire'], kmMinimo: 0 },
     nivelConfianza: 0.870, prioridad: 3, activa: true, tareas: [23, 24] },
 ];
 

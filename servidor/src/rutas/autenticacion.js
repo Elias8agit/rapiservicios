@@ -35,7 +35,32 @@ enrutador.post('/ingreso', async (peticion, respuesta) => {
       password: String(contrasena),
     });
 
-    if (error || !data?.session) {
+    // Una credencial equivocada y un servicio caido son fallas distintas y
+    // requieren respuestas distintas. Hasta el 10 de septiembre de 2026 ambas
+    // devolvian el mismo mensaje, y una pausa del proveedor de datos llevo al
+    // usuario a buscar durante un rato un problema de contrasena inexistente.
+    //
+    // El proveedor reporta la credencial invalida con estado 400 o 401. Toda
+    // otra condicion corresponde a una indisponibilidad del servicio.
+    if (error) {
+      const credencialInvalida =
+        error.status === 400 ||
+        error.status === 401 ||
+        /invalid login credentials|email not confirmed/i.test(error.message || '');
+
+      if (credencialInvalida) {
+        return respuesta.status(401).json({ error: 'El correo o la contrasena no corresponden.' });
+      }
+
+      return respuesta.status(503).json({
+        error:
+          'El servicio de datos del taller no responde, de modo que la cuenta no se logro verificar. ' +
+          'La contrasena no esta en duda.',
+        detalle: error.message,
+      });
+    }
+
+    if (!data?.session) {
       return respuesta.status(401).json({ error: 'El correo o la contrasena no corresponden.' });
     }
 

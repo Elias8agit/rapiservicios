@@ -45,9 +45,12 @@ enrutador.get('/:codigo', async (peticion, respuesta) => {
       return respuesta.status(404).json({ error: 'El codigo no corresponde a ninguna orden de trabajo.' });
     }
 
+    // Una tarea procede del catalogo del taller o de una sugerencia de la capa
+    // de interpretacion. La segunda carece de fila dentro de tarea_revision, de
+    // modo que la consulta recupera tambien el nombre propio de esa fila.
     const { data: tareas } = await clienteServicio
       .from('detalle_orden')
-      .select('completada, tarea:tarea_revision(nombre_tarea)')
+      .select('completada, nombre_tarea_sugerida, tarea:tarea_revision(nombre_tarea)')
       .eq('id_orden', orden.id_orden);
 
     const listaTareas = tareas || [];
@@ -67,7 +70,14 @@ enrutador.get('/:codigo', async (peticion, respuesta) => {
         tareasCompletadas: completadas,
         porcentaje: listaTareas.length ? Math.round((completadas / listaTareas.length) * 100) : 0,
       },
-      revisiones: listaTareas.map((t) => ({ nombre: t.tarea.nombre_tarea, completada: t.completada })),
+      // El cliente observa el nombre de la revision, sin distinguir de donde
+      // proviene. Esa distincion corresponde al personal del taller.
+      revisiones: listaTareas
+        .map((t) => ({
+          nombre: t.tarea?.nombre_tarea || t.nombre_tarea_sugerida || null,
+          completada: t.completada,
+        }))
+        .filter((t) => t.nombre),
     });
   } catch (error) {
     return respuesta.status(error.codigoHttp || 500).json({ error: error.message });

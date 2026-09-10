@@ -1,0 +1,49 @@
+flowchart TD
+
+    subgraph SISTEMA["Sistema"]
+        direction TB
+        S1[Interpreta el texto y la fotografía]
+        S2{¿Describe una falla?}
+        S3{¿Corresponde al catálogo del taller?}
+        S4[El motor de reglas asigna tareas y tiempo]
+        S5[Interpretación abierta: tareas marcadas como sugeridas]
+        S6[Deriva la orden al criterio del mecánico]
+        S7[Genera la orden con código de consulta]
+        S8[Registra el primer asiento de la bitácora]
+        S9[Actualiza el estado y traza el cambio]
+    end
+
+    subgraph TALLER["Personal del taller: propietario o mecánico"]
+        direction TB
+        T1[Registra o localiza al cliente y el vehículo]
+        T2[Escribe la falla en sus propias palabras]
+        T3[Adjunta la fotografía del componente]
+        T4[Revisa el diagnóstico sugerido]
+        T5[Ejecuta las tareas y marca las concluidas]
+        T6[Hace avanzar el estado de la orden]
+        T7[Entrega el vehículo]
+    end
+
+    subgraph CLIENTE["Cliente"]
+        direction TB
+        C1([Llega al taller con el vehículo])
+        C2[Describe la falla al personal]
+        C3[Consulta el estado con el código]
+        C4([Retira el vehículo])
+    end
+
+    C1 --> T1
+    C2 --> T2
+    T1 --> T2 --> T3 --> S1 --> S2
+    S2 -- No --> S6 --> S7
+    S2 -- Sí --> S3
+    S3 -- Sí --> S4 --> S7
+    S3 -- No --> S5 --> S7
+    S7 --> S8 --> T4 --> T5 --> T6 --> S9 --> T7 --> C4
+    S7 -.-> C3
+    C3 -.-> S9
+
+    classDef decision fill:#FFF4E5,stroke:#B26A00,stroke-width:1px
+    classDef limite fill:#E7F4EC,stroke:#1E7A46,stroke-width:1px
+    class S2,S3 decision
+    class C1,C4 limite

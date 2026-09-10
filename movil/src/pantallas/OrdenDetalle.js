@@ -159,13 +159,16 @@ export default function OrdenDetalle({ route }) {
                     'Sin correspondencia dentro del catalogo'}
                 </Text>
 
-                <Text style={estilos.tarjetaDetalle}>
-                  {d.categoria
-                    ? `Sistema: ${d.categoria.sistema_vehicular}`
-                    : d.sistema_sugerido
-                    ? `Sistema senalado: ${d.sistema_sugerido}`
-                    : 'La descripcion no permitio ubicar un sistema del vehiculo.'}
-                </Text>
+                {/* Sin categoria del catalogo, el titulo ya presenta el
+                    sistema que senala el asistente, de modo que repetirlo aqui
+                    solo ocupa pantalla. */}
+                {d.categoria ? (
+                  <Text style={estilos.tarjetaDetalle}>Sistema: {d.categoria.sistema_vehicular}</Text>
+                ) : !d.sistema_sugerido ? (
+                  <Text style={estilos.tarjetaDetalle}>
+                    La descripcion no permitio ubicar un sistema del vehiculo.
+                  </Text>
+                ) : null}
 
                 {d.hallazgo ? (
                   <Text style={[estilos.tarjetaDetalle, { color: COLORES.texto, marginTop: ESPACIO.xs }]}>

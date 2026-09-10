@@ -79,16 +79,21 @@ erDiagram
     DIAGNOSTICO {
         int id_diagnostico PK
         int id_orden FK
-        int id_categoria FK
+        int id_categoria FK "opcional"
         varchar origen_interpretacion
         decimal nivel_confianza
         text texto_interpretado
+        varchar sistema_sugerido
+        text hallazgo
         timestamp fecha_generacion
     }
     DETALLE_ORDEN {
         int id_detalle PK
         int id_orden FK
-        int id_tarea FK
+        int id_tarea FK "opcional"
+        varchar origen
+        varchar nombre_tarea_sugerida
+        int tiempo_sugerido_min
         boolean completada
         int tiempo_real_min
         text observacion
@@ -117,9 +122,9 @@ erDiagram
     USUARIO ||--o{ ORDEN_TRABAJO : recepciona
     ESTADO_ORDEN ||--o{ ORDEN_TRABAJO : define
     ORDEN_TRABAJO ||--o{ DIAGNOSTICO : integra
-    CATEGORIA_FALLA ||--o{ DIAGNOSTICO : clasifica
+    CATEGORIA_FALLA |o--o{ DIAGNOSTICO : clasifica
     ORDEN_TRABAJO ||--o{ DETALLE_ORDEN : contiene
-    TAREA_REVISION ||--o{ DETALLE_ORDEN : obtiene
+    TAREA_REVISION |o--o{ DETALLE_ORDEN : obtiene
     ORDEN_TRABAJO ||--o{ FOTOGRAFIA : documenta
     USUARIO ||--o{ FOTOGRAFIA : captura
     ORDEN_TRABAJO ||--o{ BITACORA_ESTADO : traza
