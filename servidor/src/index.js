@@ -14,6 +14,7 @@ const express = require('express');
 const cors = require('cors');
 
 const { configurado, clienteServicio } = require('./config/supabase');
+const { CATEGORIAS, TAREAS, REGLAS } = require('./datos/catalogo');
 
 const rutasAutenticacion = require('./rutas/autenticacion');
 const rutasUsuarios = require('./rutas/usuarios');
@@ -67,13 +68,26 @@ app.use(express.json({ limit: '12mb' }));
 app.get('/api/salud', async (peticion, respuesta) => {
   const informe = {
     servicio: 'Rapiservicios API',
-    version: '0.4.0',
+    version: '0.5.0',
     estado: 'operativo',
     supabase: configurado ? 'configurado' : 'sin configurar',
     baseDatos: 'sin verificar',
     demoraBaseMs: null,
     interpretacion: process.env.GEMINI_API_KEY ? 'Gemini' : 'respaldo local',
     limiteConsulta: 'activo',
+    // Tamaño de la base de conocimiento que el proceso tiene cargada.
+    //
+    // Sirve para comprobar que el despliegue tomo el codigo nuevo, y resulta
+    // mas confiable que el numero de version: la version es una etiqueta que
+    // alguien debe acordarse de subir, y el 18 de septiembre de 2026 los
+    // cambios del tipo de caja salieron sin tocarla, de modo que el informe se
+    // veia identico antes y despues. Estas cifras cambian solas cuando el
+    // catalogo cambia.
+    catalogo: {
+      categorias: CATEGORIAS.length,
+      tareas: TAREAS.length,
+      reglas: REGLAS.length,
+    },
     fecha: new Date().toISOString(),
   };
 

@@ -11,8 +11,16 @@ import { FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, TouchableO
 import { Texto, EntradaTexto } from '../componentes/Texto';
 
 import { api } from '../api/cliente';
-import { Aviso, Boton, Campo, Cargando } from '../componentes/Comunes';
+import {
+  Aviso,
+  Boton,
+  Campo,
+  Cargando,
+  OPCIONES_TRANSMISION,
+  SelectorSegmentado,
+} from '../componentes/Comunes';
 import { ESPACIO, RADIO, useTema } from '../tema';
+
 
 export default function VehiculoFormulario({ navigation, route }) {
   const { colores, estilos } = useTema();
@@ -28,6 +36,7 @@ export default function VehiculoFormulario({ navigation, route }) {
   const [kilometraje, setKilometraje] = useState(
     vehiculo?.kilometraje !== null && vehiculo?.kilometraje !== undefined ? String(vehiculo.kilometraje) : ''
   );
+  const [tipoTransmision, setTipoTransmision] = useState(vehiculo?.tipo_transmision || '');
 
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +66,7 @@ export default function VehiculoFormulario({ navigation, route }) {
         modeloAnio: Number(modeloAnio),
         color,
         kilometraje: kilometraje === '' ? null : Number(kilometraje),
+        tipoTransmision: tipoTransmision || null,
       };
 
       if (esModificacion) {
@@ -107,6 +117,22 @@ export default function VehiculoFormulario({ navigation, route }) {
           onChangeText={setKilometraje}
           placeholder="85000"
           keyboardType="number-pad"
+        />
+
+        {/* Tipo de caja.
+            Determina que revisiones manda el taller: una caja automatica no
+            tiene embrague de pedal y una mecanica no tiene cuerpo de valvulas.
+            Con el dato en blanco la orden recibe solo lo comun a ambas, que es
+            correcto pero corto. */}
+        <Texto style={[estilos.etiqueta, { marginTop: ESPACIO.md }]}>Tipo de caja</Texto>
+        <Texto style={{ color: colores.textoSuave, fontSize: 12, marginBottom: ESPACIO.sm, lineHeight: 17 }}>
+          Define las revisiones que el taller asigna a este vehiculo. Sin el dato, la orden recibe
+          solo las tareas comunes a las dos cajas.
+        </Texto>
+        <SelectorSegmentado
+          valor={tipoTransmision}
+          alCambiar={setTipoTransmision}
+          opciones={OPCIONES_TRANSMISION}
         />
 
         <Aviso mensaje={error} />

@@ -13,6 +13,7 @@
     "prueba:gemini": "node pruebas/prueba-gemini.js",
     "prueba:niveles": "node pruebas/prueba-niveles.js",
     "prueba:limite": "node pruebas/prueba-limite.js",
+    "prueba:transmision": "node pruebas/prueba-transmision.js",
     "prueba:modelos": "node pruebas/prueba-modelos.js"
   },
   "engines": {

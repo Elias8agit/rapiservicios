@@ -45,6 +45,20 @@ const TAREAS = [
   { idTarea: 22, nombre: 'Balanceo de ruedas',                      minutos: 40 },
   { idTarea: 23, nombre: 'Carga de refrigerante',                   minutos: 45 },
   { idTarea: 24, nombre: 'Prueba de compresor de aire',             minutos: 30 },
+
+  // Tareas propias de la caja automatica, agregadas el 18 de septiembre de
+  // 2026. Hasta esa fecha la categoria Transmision asignaba la revision del
+  // embrague a cualquier vehiculo, y una caja automatica carece de embrague de
+  // pedal: la orden RS7MNWKJ, sobre una caja automatica, cargaba treinta y
+  // cinco minutos de un trabajo inexistente.
+  //
+  // PENDIENTE DE CONFIRMAR CON EL PROPIETARIO DEL TALLER. Estas cuatro tareas
+  // corresponden a la practica corriente del oficio, no al procedimiento
+  // declarado por Rapiservicios. Los tiempos son provisionales.
+  { idTarea: 25, nombre: 'Revision de nivel y estado del aceite de transmision', minutos: 20 },
+  { idTarea: 26, nombre: 'Prueba de solenoides y cuerpo de valvulas',            minutos: 40 },
+  { idTarea: 27, nombre: 'Revision del convertidor de par',                      minutos: 35 },
+  { idTarea: 28, nombre: 'Lectura de codigos del modulo de transmision',         minutos: 15 },
 ];
 
 /**
@@ -82,9 +96,23 @@ const REGLAS = [
   { idRegla: 7,  idCategoria: 6,  nombre: 'Falla de carga electrica',
     condicion: { palabras: ['bateria', 'se descarga', 'luz de bateria', 'no da corriente', 'alternador', 'fusible', 'sistema electrico', 'las luces'], kmMinimo: 0 },
     nivelConfianza: 0.890, prioridad: 1, activa: true, tareas: [11, 12, 8] },
+  // TRANSMISION, PARTIDA EN TRES EL 18 DE SEPTIEMBRE DE 2026.
+  //
+  // Una caja mecanica y una automatica comparten el sintoma pero no el
+  // procedimiento. La regla 8 conserva lo comun a ambas; las reglas 14 y 15
+  // aportan lo propio de cada tipo y solo se aplican cuando el tipo consta.
+  //
+  // El campo condicion.transmision es lo que las distingue. Una regla sin ese
+  // campo se aplica a cualquier vehiculo.
   { idRegla: 8,  idCategoria: 7,  nombre: 'Falla de la transmision',
-    condicion: { palabras: ['embrague', 'patina', 'no entra cambio', 'clutch', 'caja mecanica', 'caja de cambios', 'caja de velocidades', 'transmision', 'velocidades', 'sincronizado', 'palanca de cambios'], kmMinimo: 0 },
-    nivelConfianza: 0.850, prioridad: 2, activa: true, tareas: [16, 17] },
+    condicion: { palabras: ['no entra cambio', 'caja de cambios', 'caja de velocidades', 'transmision', 'velocidades', 'patina'], kmMinimo: 0 },
+    nivelConfianza: 0.850, prioridad: 2, activa: true, tareas: [17] },
+  { idRegla: 14, idCategoria: 7,  nombre: 'Falla de caja mecanica',
+    condicion: { palabras: ['embrague', 'clutch', 'caja mecanica', 'sincronizado', 'palanca de cambios', 'manual', 'estandar'], kmMinimo: 0, transmision: ['MECANICA'] },
+    nivelConfianza: 0.870, prioridad: 2, activa: true, tareas: [16, 17] },
+  { idRegla: 15, idCategoria: 7,  nombre: 'Falla de caja automatica',
+    condicion: { palabras: ['caja automatica', 'automatica', 'solenoide', 'convertidor', 'cuerpo de valvulas', 'aceite de transmision', 'atf'], kmMinimo: 0, transmision: ['AUTOMATICA'] },
+    nivelConfianza: 0.870, prioridad: 2, activa: true, tareas: [25, 28, 26, 27] },
   { idRegla: 9,  idCategoria: 8,  nombre: 'Sobrecalentamiento del motor',
     condicion: { palabras: ['calienta', 'calentamiento', 'sobrecalent', 'temperatura', 'hierve', 'vapor', 'radiador', 'refrigerante', 'ventilador'], kmMinimo: 0 },
     nivelConfianza: 0.910, prioridad: 1, activa: true, tareas: [14, 15, 13] },

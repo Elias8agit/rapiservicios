@@ -176,7 +176,7 @@ enrutador.post('/', async (peticion, respuesta) => {
   try {
     const { data: vehiculo } = await clienteServicio
       .from('vehiculo')
-      .select('id_vehiculo, placa, kilometraje')
+      .select('id_vehiculo, placa, kilometraje, tipo_transmision')
       .eq('id_vehiculo', Number(idVehiculo))
       .maybeSingle();
 
@@ -218,6 +218,10 @@ enrutador.post('/', async (peticion, respuesta) => {
           descripcion: String(descripcionFalla),
           nivelConfianza: interpretacion.nivelConfianza,
           kilometraje: kilometrajeUsado,
+          // Tipo de caja de la ficha del vehiculo. Sin ese dato el motor lo
+          // busca dentro de la descripcion, y a falta de ambos se abstiene de
+          // las tareas propias de un tipo en lugar de suponerlo.
+          tipoTransmision: vehiculo.tipo_transmision || null,
         })
       : { aplicada: false, motivo: 'La averia no corresponde a ninguna categoria del catalogo.' };
 

@@ -17,6 +17,7 @@
 const express = require('express');
 const { clienteServicio } = require('../config/supabase');
 const { requiereSesion } = require('../middleware/autenticacion');
+const { TIPOS_TRANSMISION } = require('../servicios/motorReglas');
 
 const enrutador = express.Router();
 
@@ -34,6 +35,18 @@ function validar(cuerpo) {
   const kilometraje = cuerpo.kilometraje === undefined || cuerpo.kilometraje === null
     ? null
     : Number(cuerpo.kilometraje);
+
+  // Tipo de caja. Campo opcional: los vehiculos registrados antes del 18 de
+  // septiembre de 2026 carecen de el, y obligarlo impediria modificar esas
+  // fichas. Un valor ausente significa que el taller todavia no lo constato, y
+  // el motor de reglas se abstiene de las tareas propias de un tipo en lugar de
+  // suponerlo.
+  const transmisionCruda = String(cuerpo.tipoTransmision || '').trim().toUpperCase();
+  const tipoTransmision = transmisionCruda || null;
+
+  if (tipoTransmision && !TIPOS_TRANSMISION.includes(tipoTransmision)) {
+    errores.push(`El tipo de transmision admite ${TIPOS_TRANSMISION.join(' o ')}.`);
+  }
 
   if (!cuerpo.idCliente) errores.push('El cliente propietario resulta obligatorio.');
   if (placa.length < 4) errores.push('La placa requiere al menos cuatro caracteres.');
@@ -56,6 +69,7 @@ function validar(cuerpo) {
       modelo_anio: anio,
       color: cuerpo.color ? String(cuerpo.color).trim() : null,
       kilometraje,
+      tipo_transmision: tipoTransmision,
     },
   };
 }
@@ -67,7 +81,7 @@ enrutador.get('/', async (peticion, respuesta) => {
 
   let consulta = clienteServicio
     .from('vehiculo')
-    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje, fecha_registro, cliente:cliente(id_cliente, nombre_completo, telefono)')
+    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje, tipo_transmision, fecha_registro, cliente:cliente(id_cliente, nombre_completo, telefono)')
     .order('placa');
 
   if (idCliente) consulta = consulta.eq('id_cliente', Number(idCliente));
@@ -84,7 +98,7 @@ enrutador.get('/', async (peticion, respuesta) => {
 enrutador.get('/:id', async (peticion, respuesta) => {
   const { data, error } = await clienteServicio
     .from('vehiculo')
-    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje, fecha_registro, cliente:cliente(id_cliente, nombre_completo, telefono, correo)')
+    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje, tipo_transmision, fecha_registro, cliente:cliente(id_cliente, nombre_completo, telefono, correo)')
     .eq('id_vehiculo', Number(peticion.params.id))
     .maybeSingle();
 
@@ -119,7 +133,7 @@ enrutador.post('/', async (peticion, respuesta) => {
   const { data, error } = await clienteServicio
     .from('vehiculo')
     .insert(valores)
-    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje')
+    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje, tipo_transmision')
     .single();
 
   if (error) {
@@ -143,7 +157,7 @@ enrutador.put('/:id', async (peticion, respuesta) => {
     .from('vehiculo')
     .update(valores)
     .eq('id_vehiculo', Number(peticion.params.id))
-    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje')
+    .select('id_vehiculo, placa, marca, linea, modelo_anio, color, kilometraje, tipo_transmision')
     .maybeSingle();
 
   if (error) {

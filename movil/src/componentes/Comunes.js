@@ -284,6 +284,27 @@ export function Distintivo({ texto, color = null }) {
 }
 
 /**
+ * Tipos de caja que el taller distingue, con el orden en que se presentan.
+ *
+ * Reside aqui, y no dentro de una pantalla, porque lo usan tanto el formulario
+ * completo de vehiculos como el alta rapida desde la orden. Una lista repetida
+ * en dos lugares termina divergiendo.
+ *
+ * El valor vacio corresponde a un vehiculo cuyo tipo el taller todavia no
+ * constato. Se ofrece de forma expresa en lugar de dejar el campo sin elegir:
+ * asi el mecanico distingue entre no haberlo llenado y no saberlo, y puede
+ * volver atras despues de elegir por equivocacion.
+ *
+ * Los valores coinciden con los que admite la columna tipo_transmision de la
+ * base de datos. Cambiar uno obliga a cambiar el otro.
+ */
+export const OPCIONES_TRANSMISION = [
+  { valor: 'MECANICA', texto: 'Mecanica', icono: 'git-commit-outline' },
+  { valor: 'AUTOMATICA', texto: 'Automatica', icono: 'sync-outline' },
+  { valor: '', texto: 'Sin dato', icono: 'help-circle-outline' },
+];
+
+/**
  * Selector de opciones excluyentes, presentadas juntas.
  *
  * Evita el menu desplegable cuando las opciones son pocas: la persona ve todas

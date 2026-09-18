@@ -32,7 +32,16 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
-import { Aviso, Boton, Campo, Cargando, Distintivo, EstadoVacio } from '../componentes/Comunes';
+import {
+  Aviso,
+  Boton,
+  Campo,
+  Cargando,
+  Distintivo,
+  EstadoVacio,
+  OPCIONES_TRANSMISION,
+  SelectorSegmentado,
+} from '../componentes/Comunes';
 import { ESPACIO, RADIO, useTema } from '../tema';
 
 /** Cantidad maxima de fotografias por orden. */
@@ -1009,6 +1018,7 @@ function FormularioVehiculoRapido({ cliente, alCancelar, alCrear, margenes }) {
   const [modeloAnio, setModeloAnio] = useState('');
   const [color, setColor] = useState('');
   const [kilometraje, setKilometraje] = useState('');
+  const [tipoTransmision, setTipoTransmision] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
 
@@ -1032,6 +1042,7 @@ function FormularioVehiculoRapido({ cliente, alCancelar, alCrear, margenes }) {
         modeloAnio: anio,
         color: color.trim(),
         kilometraje: kilometraje === '' ? null : Number(kilometraje),
+        tipoTransmision: tipoTransmision || null,
       });
       alCrear(respuesta.vehiculo, cliente);
     } catch (falla) {
@@ -1083,6 +1094,19 @@ function FormularioVehiculoRapido({ cliente, alCancelar, alCrear, margenes }) {
         placeholder="Opcional"
         keyboardType="number-pad"
         icono="speedometer-outline"
+      />
+
+      {/* Tipo de caja. Se pide aqui, al dar de alta el vehiculo, porque es el
+          momento en que el mecanico lo tiene enfrente. Determina que revisiones
+          manda el taller en esta orden y en todas las que vengan despues. */}
+      <Texto style={[estilos.etiqueta, { marginTop: ESPACIO.sm }]}>Tipo de caja</Texto>
+      <Texto style={{ color: colores.textoSuave, fontSize: 12, marginBottom: ESPACIO.sm, lineHeight: 17 }}>
+        Sin este dato la orden recibe solo las revisiones comunes a las dos cajas.
+      </Texto>
+      <SelectorSegmentado
+        valor={tipoTransmision}
+        alCambiar={setTipoTransmision}
+        opciones={OPCIONES_TRANSMISION}
       />
 
       <Aviso mensaje={error} />

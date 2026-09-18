@@ -13,6 +13,9 @@ const { CATEGORIAS, TAREAS, REGLAS } = require('../datos/catalogo');
 
 const UMBRAL_CONFIANZA = 0.60;
 
+/** Tipos de transmision que el taller distingue. */
+const TIPOS_TRANSMISION = ['MECANICA', 'AUTOMATICA'];
+
 /** Elimina tildes y normaliza el texto para la comparacion de palabras. */
 function normalizar(texto) {
   return String(texto || '')
@@ -23,13 +26,67 @@ function normalizar(texto) {
     .trim();
 }
 
+/**
+ * Expresiones con las que el taller nombra cada tipo de caja.
+ *
+ * Sirven unicamente al reconocimiento de respaldo descrito en tipoDeCaja.
+ */
+const SENAS_TRANSMISION = {
+  AUTOMATICA: ['automatica', 'automatico', 'caja auto', ' at ', 'cvt', 'tiptronic', 'convertidor de par'],
+  MECANICA: ['mecanica', 'manual', 'estandar', 'embrague', 'clutch', 'sincronizado'],
+};
+
+/**
+ * Determina el tipo de caja del vehiculo, en tres pasos y por ese orden.
+ *
+ *   1. El dato que consta en la ficha del vehiculo. Es la fuente de verdad:
+ *      lo captura el taller al registrar el vehiculo y no depende de como
+ *      redacte la orden quien la ingresa.
+ *
+ *   2. A falta de ese dato, lo que la propia descripcion declare. Los
+ *      vehiculos registrados antes del 18 de septiembre de 2026 carecen del
+ *      campo, y sin este paso perderian las tareas propias de su caja hasta
+ *      que alguien complete la ficha.
+ *
+ *   3. Si ninguno resuelve, el tipo queda en desconocido y la orden recibe
+ *      solo las tareas comunes a ambas cajas. Vale mas una orden corta y
+ *      correcta que una larga con trabajo que no corresponde, que fue
+ *      exactamente el defecto que origino este cambio.
+ *
+ * @returns {{tipo:(string|null), procedencia:string}}
+ */
+function tipoDeCaja(entrada) {
+  const declarado = String(entrada.tipoTransmision || '').toUpperCase();
+  if (TIPOS_TRANSMISION.includes(declarado)) {
+    return { tipo: declarado, procedencia: 'FICHA' };
+  }
+
+  // El texto se rodea de espacios para que una sena corta como " at " no
+  // coincida dentro de otra palabra.
+  const texto = ` ${normalizar(entrada.descripcion)} `;
+  for (const tipo of TIPOS_TRANSMISION) {
+    if (SENAS_TRANSMISION[tipo].some((sena) => texto.includes(normalizar(sena)))) {
+      return { tipo, procedencia: 'DESCRIPCION' };
+    }
+  }
+
+  return { tipo: null, procedencia: 'DESCONOCIDA' };
+}
+
 /** Verifica si una regla se cumple para la entrada recibida. */
-function seCumple(regla, entrada) {
+function seCumple(regla, entrada, tipoCaja) {
   if (!regla.activa) return false;
   if (regla.idCategoria !== entrada.idCategoria) return false;
 
   const kilometraje = Number(entrada.kilometraje || 0);
   if (kilometraje < Number(regla.condicion.kmMinimo || 0)) return false;
+
+  // Regla sujeta a un tipo de caja. Sin tipo conocido no se aplica: el motor
+  // de reglas no adivina cual de las dos tiene el vehiculo enfrente.
+  if (Array.isArray(regla.condicion.transmision)) {
+    if (!tipoCaja) return false;
+    if (!regla.condicion.transmision.includes(tipoCaja)) return false;
+  }
 
   const texto = normalizar(entrada.descripcion);
   const coincidencias = regla.condicion.palabras.filter((p) => texto.includes(normalizar(p)));
@@ -48,7 +105,8 @@ function calcularPeso(regla, entrada) {
 
 /**
  * Evalua la base de conocimiento y construye el diagnostico sugerido.
- * @param {{idCategoria:number, descripcion:string, nivelConfianza:number, kilometraje:number}} entrada
+ * @param {{idCategoria:number, descripcion:string, nivelConfianza:number,
+ *          kilometraje:number, tipoTransmision:(string|null)}} entrada
  */
 function evaluar(entrada) {
   const categoria = CATEGORIAS.find((c) => c.idCategoria === entrada.idCategoria);
@@ -56,14 +114,17 @@ function evaluar(entrada) {
     return { aplicada: false, motivo: 'La categoria recibida no existe en el catalogo.' };
   }
 
+  const caja = tipoDeCaja(entrada);
+
   const aplicables = REGLAS
-    .filter((r) => seCumple(r, entrada))
+    .filter((r) => seCumple(r, entrada, caja.tipo))
     .sort((a, b) => calcularPeso(b, entrada) - calcularPeso(a, entrada));
 
   if (aplicables.length === 0) {
     return {
       aplicada: false,
       categoria: categoria.nombre,
+      transmision: caja,
       motivo: 'Ninguna regla de la categoria satisface las condiciones. Se requiere revision manual.',
     };
   }
@@ -87,6 +148,10 @@ function evaluar(entrada) {
     aplicada: true,
     categoria: categoria.nombre,
     sistemaVehicular: categoria.sistema,
+    // Tipo de caja con el que se resolvio, y de donde salio. La procedencia
+    // importa: una orden resuelta con el dato de la ficha es mas confiable que
+    // una resuelta con lo que alguien escribio de prisa.
+    transmision: caja,
     reglasAplicadas: aplicables.map((r) => r.nombre),
     tareas,
     tiempoEstimadoMin: tiempoEstimado,
@@ -103,4 +168,4 @@ function formatearTiempo(minutos) {
   return `${horas} hora(s) con ${resto} minutos`;
 }
 
-module.exports = { evaluar, normalizar, UMBRAL_CONFIANZA };
+module.exports = { evaluar, normalizar, tipoDeCaja, UMBRAL_CONFIANZA, TIPOS_TRANSMISION };
