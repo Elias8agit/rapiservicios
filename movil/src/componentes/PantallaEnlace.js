@@ -22,7 +22,9 @@
  */
 
 import React from 'react';
-import { ActivityIndicator, Image, Text, View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
+import { Texto } from './Texto';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Boton } from './Comunes';
@@ -33,8 +35,16 @@ const TEXTO_SUAVE = '#9AA7B4';
 
 const LOGO = require('../../assets/logo-rapiservicios.png');
 
-/** Marco comun de la pantalla, con el logo del taller sobre fondo oscuro. */
+/**
+ * Marco comun de la pantalla, con el logo del taller sobre fondo oscuro.
+ *
+ * La pantalla antecede a la navegacion, de modo que carece de encabezado y
+ * nadie reserva por ella el margen de la barra de estado ni el de los botones
+ * del telefono. Los consulta al sistema, porque el alto de esa franja cambia
+ * entre un telefono con muesca, uno sin ella y una tableta.
+ */
 function Marco({ children }) {
+  const margenes = useSafeAreaInsets();
   return (
     <View
       style={{
@@ -42,7 +52,9 @@ function Marco({ children }) {
         backgroundColor: FONDO,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: ESPACIO.lg,
+        paddingHorizontal: ESPACIO.lg,
+        paddingTop: margenes.top + ESPACIO.lg,
+        paddingBottom: margenes.bottom + ESPACIO.lg,
       }}
     >
       <Image source={LOGO} style={{ width: '82%', height: 130, marginBottom: ESPACIO.xl }} resizeMode="contain" />
@@ -53,13 +65,13 @@ function Marco({ children }) {
 
 function Titulo({ children }) {
   return (
-    <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700', textAlign: 'center' }}>{children}</Text>
+    <Texto style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '700', textAlign: 'center' }}>{children}</Texto>
   );
 }
 
 function Parrafo({ children }) {
   return (
-    <Text
+    <Texto
       style={{
         color: TEXTO_SUAVE,
         fontSize: 13,
@@ -69,7 +81,7 @@ function Parrafo({ children }) {
       }}
     >
       {children}
-    </Text>
+    </Texto>
   );
 }
 
@@ -102,9 +114,9 @@ export default function PantallaEnlace({ estado, segundos = 0, detalle = '', alR
               alignSelf: 'stretch',
             }}
           >
-            <Text style={{ color: TEXTO_SUAVE, fontSize: 11 }} numberOfLines={3}>
+            <Texto style={{ color: TEXTO_SUAVE, fontSize: 11 }} numberOfLines={3}>
               {detalle}
-            </Text>
+            </Texto>
           </View>
         ) : null}
         <View style={{ width: '100%' }}>
@@ -136,9 +148,9 @@ export default function PantallaEnlace({ estado, segundos = 0, detalle = '', alR
   return (
     <Marco>
       <ActivityIndicator size="large" color={colores.acento} />
-      <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600', marginTop: ESPACIO.md }}>
+      <Texto style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600', marginTop: ESPACIO.md }}>
         {demorado ? 'Encendiendo el servidor del taller' : 'Enlazando con el servidor del taller'}
-      </Text>
+      </Texto>
 
       {demorado ? (
         <>
@@ -146,9 +158,9 @@ export default function PantallaEnlace({ estado, segundos = 0, detalle = '', alR
             El servidor entra en reposo cuando pasa un rato sin uso. El primer ingreso del dia
             aguarda cerca de un minuto mientras arranca. Los siguientes responden de inmediato.
           </Parrafo>
-          <Text style={{ color: colores.acento, fontSize: 13, fontWeight: '700', marginTop: ESPACIO.md }}>
+          <Texto style={{ color: colores.acento, fontSize: 13, fontWeight: '700', marginTop: ESPACIO.md }}>
             {segundos} segundos
-          </Text>
+          </Texto>
         </>
       ) : null}
     </Marco>

@@ -23,20 +23,9 @@
  *     telefono, de modo que no obliga a desplazar la pantalla para enviarla.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Texto, EntradaTexto } from '../componentes/Texto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -213,10 +202,28 @@ export default function OrdenNueva({ navigation }) {
   if (resultado) {
     const { orden, interpretacion, diagnostico } = resultado;
     const generativo = interpretacion.origen === 'GENERATIVO';
-    const conTareas = diagnostico.aplicada || (resultado.tareasSugeridas || []).length > 0;
-    const tareas = diagnostico.aplicada
-      ? diagnostico.tareas.map((t) => ({ nombre: t.nombre, minutos: t.minutos, sugerida: false }))
-      : (resultado.tareasSugeridas || []).map((t) => ({ ...t, sugerida: true }));
+    // Las dos procedencias se muestran juntas.
+    //
+    // Desde la profundidad complementaria, una orden que el motor de reglas si
+    // resolvio puede traer ademas tareas propuestas por la capa de
+    // interpretacion. Antes esta pantalla mostraba una lista o la otra, de modo
+    // que en ese caso las complementarias quedaban invisibles pese a estar
+    // guardadas y contar dentro del tiempo estimado.
+    //
+    // La distincion se conserva: la tarea del taller y la sugerida se marcan
+    // distinto, porque el mecanico debe saber cual proviene de la base de
+    // conocimiento del taller y cual de una sugerencia.
+    const tareas = [
+      ...(diagnostico.aplicada
+        ? diagnostico.tareas.map((t) => ({ nombre: t.nombre, minutos: t.minutos, sugerida: false }))
+        : []),
+      ...(resultado.tareasSugeridas || []).map((t) => ({
+        nombre: t.nombre,
+        minutos: t.minutos,
+        sugerida: true,
+      })),
+    ];
+    const conTareas = tareas.length > 0;
     const minutos = tareas.reduce((total, t) => total + t.minutos, 0);
 
     return (
@@ -228,13 +235,13 @@ export default function OrdenNueva({ navigation }) {
           ]}
         >
           <Ionicons name="checkmark-circle" size={40} color={colores.exito} />
-          <Text style={{ fontSize: 15, fontWeight: '700', color: colores.texto, marginTop: ESPACIO.sm }}>
+          <Texto style={{ fontSize: 15, fontWeight: '700', color: colores.texto, marginTop: ESPACIO.sm }}>
             Orden generada
-          </Text>
-          <Text style={{ fontSize: 12, color: colores.textoSuave, marginTop: 2 }}>
+          </Texto>
+          <Texto style={{ fontSize: 12, color: colores.textoSuave, marginTop: 2 }}>
             Codigo de consulta para el cliente
-          </Text>
-          <Text
+          </Texto>
+          <Texto
             style={{
               fontSize: 34,
               fontWeight: '800',
@@ -244,8 +251,8 @@ export default function OrdenNueva({ navigation }) {
             }}
           >
             {orden.codigo_consulta}
-          </Text>
-          <Text
+          </Texto>
+          <Texto
             style={{
               fontSize: 12,
               color: colores.textoSuave,
@@ -255,29 +262,29 @@ export default function OrdenNueva({ navigation }) {
             }}
           >
             Con este codigo el cliente consulta el avance sin llamar al taller.
-          </Text>
+          </Texto>
         </View>
 
         <View style={estilos.tarjeta}>
-          <Text style={estilos.tarjetaTitulo}>Interpretacion de la falla</Text>
-          <Text style={[estilos.tarjetaDetalle, { color: colores.texto, fontSize: 15, marginTop: ESPACIO.xs }]}>
+          <Texto style={estilos.tarjetaTitulo}>Interpretacion de la falla</Texto>
+          <Texto style={[estilos.tarjetaDetalle, { color: colores.texto, fontSize: 15, marginTop: ESPACIO.xs }]}>
             {diagnostico.categoria || interpretacion.sistemaSugerido || 'Sin correspondencia dentro del catalogo'}
-          </Text>
+          </Texto>
           {interpretacion.hallazgo ? (
-            <Text style={estilos.tarjetaDetalle}>{interpretacion.hallazgo}</Text>
+            <Texto style={estilos.tarjetaDetalle}>{interpretacion.hallazgo}</Texto>
           ) : null}
-          <Text style={estilos.tarjetaDetalle}>
+          <Texto style={estilos.tarjetaDetalle}>
             Confianza {(Number(interpretacion.nivelConfianza) * 100).toFixed(0)} % · origen{' '}
             {interpretacion.origen}
-          </Text>
+          </Texto>
 
           {generativo ? (
             <View style={[estilos.aviso, estilos.avisoAtencion, { marginTop: ESPACIO.sm }]}>
               <Ionicons name="information-circle" size={18} color={colores.aviso} />
-              <Text style={{ color: colores.aviso, fontSize: 12, flex: 1, lineHeight: 17 }}>
+              <Texto style={{ color: colores.aviso, fontSize: 12, flex: 1, lineHeight: 17 }}>
                 Lectura del asistente, fuera del catalogo del taller. Conviene confirmarla con
                 criterio propio.
-              </Text>
+              </Texto>
             </View>
           ) : null}
         </View>
@@ -285,7 +292,7 @@ export default function OrdenNueva({ navigation }) {
         {conTareas ? (
           <View style={estilos.tarjeta}>
             <View style={estilos.fila}>
-              <Text style={estilos.tarjetaTitulo}>Tareas de revision</Text>
+              <Texto style={estilos.tarjetaTitulo}>Tareas de revision</Texto>
               <Distintivo texto={`${minutos} MIN`} color={colores.acento} />
             </View>
             {tareas.map((tarea, indice) => (
@@ -293,13 +300,13 @@ export default function OrdenNueva({ navigation }) {
                 key={`${tarea.nombre}-${indice}`}
                 style={{ flexDirection: 'row', gap: ESPACIO.sm, marginTop: ESPACIO.sm }}
               >
-                <Text style={{ color: colores.textoSuave, fontSize: 13, fontWeight: '700', width: 20 }}>
+                <Texto style={{ color: colores.textoSuave, fontSize: 13, fontWeight: '700', width: 20 }}>
                   {indice + 1}.
-                </Text>
+                </Texto>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colores.texto, fontSize: 14 }}>{tarea.nombre}</Text>
+                  <Texto style={{ color: colores.texto, fontSize: 14 }}>{tarea.nombre}</Texto>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACIO.sm, marginTop: 2 }}>
-                    <Text style={estilos.tarjetaDetalle}>{tarea.minutos} minutos</Text>
+                    <Texto style={estilos.tarjetaDetalle}>{tarea.minutos} minutos</Texto>
                     {tarea.sugerida ? (
                       <View
                         style={{
@@ -311,7 +318,7 @@ export default function OrdenNueva({ navigation }) {
                           borderColor: colores.aviso,
                         }}
                       >
-                        <Text style={{ color: colores.aviso, fontSize: 10, fontWeight: '800' }}>SUGERIDA</Text>
+                        <Texto style={{ color: colores.aviso, fontSize: 10, fontWeight: '800' }}>SUGERIDA</Texto>
                       </View>
                     ) : null}
                   </View>
@@ -321,8 +328,8 @@ export default function OrdenNueva({ navigation }) {
           </View>
         ) : (
           <View style={estilos.tarjeta}>
-            <Text style={estilos.tarjetaTitulo}>Revision manual</Text>
-            <Text style={estilos.tarjetaDetalle}>{diagnostico.motivo}</Text>
+            <Texto style={estilos.tarjetaTitulo}>Revision manual</Texto>
+            <Texto style={estilos.tarjetaDetalle}>{diagnostico.motivo}</Texto>
           </View>
         )}
 
@@ -349,7 +356,7 @@ export default function OrdenNueva({ navigation }) {
         keyboardShouldPersistTaps="handled"
       >
         {/* Vehiculo */}
-        <Text style={[estilos.etiqueta, { marginTop: 0 }]}>Vehiculo que ingresa</Text>
+        <Texto style={[estilos.etiqueta, { marginTop: 0 }]}>Vehiculo que ingresa</Texto>
         <Pressable
           style={({ pressed }) => [
             estilos.campo,
@@ -372,15 +379,15 @@ export default function OrdenNueva({ navigation }) {
           <View style={{ flex: 1 }}>
             {vehiculo ? (
               <>
-                <Text style={{ color: colores.texto, fontSize: 15, fontWeight: '700' }}>
+                <Texto style={{ color: colores.texto, fontSize: 15, fontWeight: '700' }}>
                   {vehiculo.placa} · {vehiculo.marca} {vehiculo.linea}
-                </Text>
-                <Text style={{ color: colores.textoSuave, fontSize: 12 }}>
+                </Texto>
+                <Texto style={{ color: colores.textoSuave, fontSize: 12 }}>
                   {vehiculo.cliente?.nombre_completo}
-                </Text>
+                </Texto>
               </>
             ) : (
-              <Text style={{ color: colores.textoSuave, fontSize: 15 }}>Elegir cliente y vehiculo</Text>
+              <Texto style={{ color: colores.textoSuave, fontSize: 15 }}>Elegir cliente y vehiculo</Texto>
             )}
           </View>
           <Ionicons name="chevron-down" size={18} color={colores.textoSuave} />
@@ -413,14 +420,14 @@ export default function OrdenNueva({ navigation }) {
 
         {/* Fotografias */}
         <View style={[estilos.fila, { marginTop: ESPACIO.md }]}>
-          <Text style={[estilos.etiqueta, { marginTop: 0, marginBottom: 0 }]}>Evidencia fotografica</Text>
-          <Text style={{ color: colores.textoSuave, fontSize: 12, fontWeight: '600' }}>
+          <Texto style={[estilos.etiqueta, { marginTop: 0, marginBottom: 0 }]}>Evidencia fotografica</Texto>
+          <Texto style={{ color: colores.textoSuave, fontSize: 12, fontWeight: '600' }}>
             {imagenes.length} de {MAXIMO_FOTOGRAFIAS}
-          </Text>
+          </Texto>
         </View>
-        <Text style={[estilos.ayuda, { marginTop: 0, marginBottom: ESPACIO.sm }]}>
+        <Texto style={[estilos.ayuda, { marginTop: 0, marginBottom: ESPACIO.sm }]}>
           La primera imagen acompana a la interpretacion. Las demas quedan como respaldo de la orden.
-        </Text>
+        </Texto>
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: ESPACIO.sm }}>
           {imagenes.map((imagen, indice) => (
@@ -447,25 +454,30 @@ export default function OrdenNueva({ navigation }) {
                     backgroundColor: colores.acento,
                   }}
                 >
-                  <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}>ANALIZA</Text>
+                  <Texto style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800' }}>ANALIZA</Texto>
                 </View>
               ) : null}
               <Pressable
                 onPress={() => quitarImagen(indice)}
-                hitSlop={8}
-                style={{
-                  position: 'absolute',
-                  top: -6,
-                  right: -6,
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  backgroundColor: colores.alerta,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                hitSlop={10}
+                style={({ pressed }) => [
+                  {
+                    position: 'absolute',
+                    top: -8,
+                    right: -8,
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    backgroundColor: colores.alerta,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 2,
+                    borderColor: colores.superficie,
+                  },
+                  pressed && { opacity: 0.75 },
+                ]}
               >
-                <Ionicons name="close" size={15} color="#FFFFFF" />
+                <Ionicons name="trash" size={15} color="#FFFFFF" />
               </Pressable>
             </View>
           ))}
@@ -495,7 +507,7 @@ export default function OrdenNueva({ navigation }) {
                 ) : (
                   <>
                     <Ionicons name="camera-outline" size={24} color={colores.acento} />
-                    <Text style={{ fontSize: 11, color: colores.textoSuave, marginTop: 4 }}>Camara</Text>
+                    <Texto style={{ fontSize: 11, color: colores.textoSuave, marginTop: 4 }}>Camara</Texto>
                   </>
                 )}
               </Pressable>
@@ -519,7 +531,7 @@ export default function OrdenNueva({ navigation }) {
                 ]}
               >
                 <Ionicons name="images-outline" size={24} color={colores.textoSuave} />
-                <Text style={{ fontSize: 11, color: colores.textoSuave, marginTop: 4 }}>Galeria</Text>
+                <Texto style={{ fontSize: 11, color: colores.textoSuave, marginTop: 4 }}>Galeria</Texto>
               </Pressable>
             </>
           ) : null}
@@ -527,7 +539,7 @@ export default function OrdenNueva({ navigation }) {
 
         <Aviso mensaje={error} />
 
-        <Text
+        <Texto
           style={{
             marginTop: ESPACIO.lg,
             fontSize: 11,
@@ -538,7 +550,7 @@ export default function OrdenNueva({ navigation }) {
         >
           La placa del vehiculo permanece dentro de la base de datos del taller y no viaja hacia el
           servicio externo de interpretacion.
-        </Text>
+        </Texto>
       </ScrollView>
 
       {/* Accion principal fija al pie */}
@@ -557,9 +569,9 @@ export default function OrdenNueva({ navigation }) {
         }}
       >
         {!listo ? (
-          <Text style={{ fontSize: 12, color: colores.textoSuave, textAlign: 'center', marginBottom: 4 }}>
+          <Texto style={{ fontSize: 12, color: colores.textoSuave, textAlign: 'center', marginBottom: 4 }}>
             {!vehiculo ? 'Falta elegir el vehiculo' : 'Falta describir la falla'}
-          </Text>
+          </Texto>
         ) : null}
         <Boton
           titulo={ocupado ? 'Generando el diagnostico' : 'Generar la orden de trabajo'}
@@ -592,10 +604,19 @@ export default function OrdenNueva({ navigation }) {
  * parte del cliente y despliega los vehiculos que le pertenecen. Cuando el
  * cliente posee un solo vehiculo, el toque sobre su nombre lo selecciona de
  * una vez.
+ *
+ * La ventana tambien registra clientes y vehiculos nuevos. Un vehiculo que
+ * llega por primera vez es el caso corriente del taller, y obligar a salir de
+ * la orden, cambiar de pestaña, registrar y volver a empezar hace perder el
+ * trabajo ya escrito. Al concluir el registro, el vehiculo queda elegido y la
+ * ventana se cierra sola.
  */
 function SelectorVehiculo({ visible, alCerrar, alSeleccionar }) {
   const { colores, estilos } = useTema();
   const margenes = useSafeAreaInsets();
+
+  const [vista, setVista] = useState('lista');
+  const [clienteDestino, setClienteDestino] = useState(null);
 
   const [vehiculos, setVehiculos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
@@ -603,21 +624,25 @@ function SelectorVehiculo({ visible, alCerrar, alSeleccionar }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
+  const consultar = useCallback(async () => {
+    setCargando(true);
+    setError('');
+    try {
+      const datos = await api.listarVehiculos();
+      setVehiculos(datos.vehiculos);
+    } catch (falla) {
+      setError(falla.message);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!visible) return;
-    (async () => {
-      setCargando(true);
-      setError('');
-      try {
-        const datos = await api.listarVehiculos();
-        setVehiculos(datos.vehiculos);
-      } catch (falla) {
-        setError(falla.message);
-      } finally {
-        setCargando(false);
-      }
-    })();
-  }, [visible]);
+    setVista('lista');
+    setClienteDestino(null);
+    consultar();
+  }, [visible, consultar]);
 
   // Agrupacion por cliente, con el filtro aplicado sobre ambos niveles.
   const clientes = useMemo(() => {
@@ -648,147 +673,428 @@ function SelectorVehiculo({ visible, alCerrar, alSeleccionar }) {
     return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [vehiculos, busqueda]);
 
+  /** El cliente recien creado encadena de inmediato con su vehiculo. */
+  function alCrearCliente(cliente) {
+    setClienteDestino(cliente);
+    setVista('vehiculo');
+  }
+
+  /** El vehiculo recien creado queda elegido, sin un paso adicional. */
+  async function alCrearVehiculo(vehiculoNuevo, cliente) {
+    await consultar();
+    alSeleccionar({ ...vehiculoNuevo, cliente });
+  }
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={alCerrar}>
       <View style={[estilos.pantalla, { paddingTop: margenes.top + ESPACIO.sm }]}>
         <View style={{ paddingHorizontal: ESPACIO.md }}>
           <View style={estilos.fila}>
-            <Text style={estilos.titulo}>Elegir vehiculo</Text>
+            <Pressable
+              onPress={() => (vista === 'lista' ? alCerrar() : setVista('lista'))}
+              hitSlop={10}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}
+            >
+              {vista !== 'lista' ? (
+                <Ionicons name="arrow-back" size={22} color={colores.texto} />
+              ) : null}
+              <Texto style={estilos.titulo}>
+                {vista === 'lista'
+                  ? 'Elegir vehiculo'
+                  : vista === 'cliente'
+                  ? 'Cliente nuevo'
+                  : 'Vehiculo nuevo'}
+              </Texto>
+            </Pressable>
             <Pressable onPress={alCerrar} hitSlop={10}>
               <Ionicons name="close" size={26} color={colores.textoSuave} />
             </Pressable>
           </View>
-
-          <View style={{ justifyContent: 'center', marginTop: ESPACIO.xs }}>
-            <TextInput
-              style={[estilos.campo, { paddingLeft: 42 }]}
-              placeholder="Buscar por cliente, placa o marca"
-              placeholderTextColor={colores.textoSuave}
-              value={busqueda}
-              onChangeText={setBusqueda}
-              autoCorrect={false}
-            />
-            <Ionicons
-              name="search"
-              size={19}
-              color={colores.textoSuave}
-              style={{ position: 'absolute', left: 14 }}
-            />
-          </View>
-
-          <Aviso mensaje={error} />
         </View>
 
-        {cargando ? (
-          <Cargando texto="Consultando vehiculos..." />
-        ) : (
-          <FlatList
-            data={clientes}
-            keyExtractor={(item) => String(item.idCliente)}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              paddingHorizontal: ESPACIO.md,
-              paddingTop: ESPACIO.sm,
-              paddingBottom: ESPACIO.xl + margenes.bottom,
-            }}
-            ListEmptyComponent={
-              <EstadoVacio
-                icono="people-outline"
-                titulo={busqueda ? 'Sin coincidencias' : 'Todavia no hay vehiculos'}
-                detalle={
-                  busqueda
-                    ? 'Ningun cliente ni vehiculo corresponde a esa busqueda.'
-                    : 'Los vehiculos se registran desde la pestaña Vehiculos, asociados a su cliente.'
-                }
-              />
-            }
-            renderItem={({ item }) => {
-              const unico = item.vehiculos.length === 1;
-              const desplegado = abierto === item.idCliente || unico || Boolean(busqueda);
-
-              return (
-                <View style={[estilos.tarjeta, { padding: 0, overflow: 'hidden' }]}>
-                  <Pressable
-                    onPress={() => (unico ? alSeleccionar(item.vehiculos[0]) : setAbierto(desplegado && !unico ? null : item.idCliente))}
-                    style={({ pressed }) => [
-                      {
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: ESPACIO.sm,
-                        padding: ESPACIO.md,
-                      },
-                      pressed && { backgroundColor: colores.superficieAlterna },
-                    ]}
-                  >
-                    <View
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: RADIO.completo,
-                        backgroundColor: colores.superficieAlterna,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Ionicons name="person" size={18} color={colores.textoSuave} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: colores.texto }}>
-                        {item.nombre}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: colores.textoSuave }}>
-                        {item.vehiculos.length === 1
-                          ? '1 vehiculo'
-                          : `${item.vehiculos.length} vehiculos`}
-                        {item.telefono ? ` · ${item.telefono}` : ''}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={unico ? 'chevron-forward' : desplegado ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color={colores.textoSuave}
-                    />
-                  </Pressable>
-
-                  {desplegado
-                    ? item.vehiculos.map((v) => (
-                        <Pressable
-                          key={v.id_vehiculo}
-                          onPress={() => alSeleccionar(v)}
-                          style={({ pressed }) => [
-                            {
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: ESPACIO.sm,
-                              paddingVertical: ESPACIO.sm + 2,
-                              paddingHorizontal: ESPACIO.md,
-                              borderTopWidth: 1,
-                              borderTopColor: colores.borde,
-                              backgroundColor: colores.superficieAlterna,
-                            },
-                            pressed && { opacity: 0.7 },
-                          ]}
-                        >
-                          <Ionicons name="car-sport-outline" size={18} color={colores.acento} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: colores.texto }}>
-                              {v.placa}
-                            </Text>
-                            <Text style={{ fontSize: 12, color: colores.textoSuave }}>
-                              {v.marca} {v.linea} {v.modelo_anio}
-                              {v.kilometraje ? ` · ${v.kilometraje} km` : ''}
-                            </Text>
-                          </View>
-                          <Ionicons name="chevron-forward" size={16} color={colores.textoSuave} />
-                        </Pressable>
-                      ))
-                    : null}
-                </View>
-              );
-            }}
+        {vista === 'cliente' ? (
+          <FormularioClienteRapido
+            alCancelar={() => setVista('lista')}
+            alCrear={alCrearCliente}
+            margenes={margenes}
           />
+        ) : vista === 'vehiculo' ? (
+          <FormularioVehiculoRapido
+            cliente={clienteDestino}
+            alCancelar={() => setVista('lista')}
+            alCrear={alCrearVehiculo}
+            margenes={margenes}
+          />
+        ) : (
+          <>
+            <View style={{ paddingHorizontal: ESPACIO.md }}>
+              <View style={{ justifyContent: 'center', marginTop: ESPACIO.xs }}>
+                <EntradaTexto
+                  style={[estilos.campo, { paddingLeft: 42 }]}
+                  placeholder="Buscar por cliente, placa o marca"
+                  placeholderTextColor={colores.textoSuave}
+                  value={busqueda}
+                  onChangeText={setBusqueda}
+                  autoCorrect={false}
+                />
+                <Ionicons
+                  name="search"
+                  size={19}
+                  color={colores.textoSuave}
+                  style={{ position: 'absolute', left: 14 }}
+                />
+              </View>
+
+              <Pressable
+                onPress={() => setVista('cliente')}
+                style={({ pressed }) => [
+                  {
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    marginTop: ESPACIO.sm,
+                    paddingVertical: 12,
+                    borderRadius: RADIO.md,
+                    borderWidth: 1.5,
+                    borderStyle: 'dashed',
+                    borderColor: colores.bordeFuerte,
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="person-add-outline" size={18} color={colores.acento} />
+                <Texto style={{ color: colores.texto, fontSize: 14, fontWeight: '700' }}>
+                  Cliente que viene por primera vez
+                </Texto>
+              </Pressable>
+
+              <Aviso mensaje={error} />
+            </View>
+
+            {cargando ? (
+              <Cargando texto="Consultando vehiculos..." />
+            ) : (
+              <FlatList
+                data={clientes}
+                keyExtractor={(item) => String(item.idCliente)}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{
+                  paddingHorizontal: ESPACIO.md,
+                  paddingTop: ESPACIO.sm,
+                  paddingBottom: ESPACIO.xl + margenes.bottom,
+                }}
+                ListEmptyComponent={
+                  <EstadoVacio
+                    icono="people-outline"
+                    titulo={busqueda ? 'Sin coincidencias' : 'Todavia no hay vehiculos'}
+                    detalle={
+                      busqueda
+                        ? 'Ningun cliente ni vehiculo corresponde a esa busqueda. Se puede registrar desde el boton de arriba.'
+                        : 'El primer cliente se registra desde el boton de arriba, junto con su vehiculo.'
+                    }
+                  />
+                }
+                renderItem={({ item }) => {
+                  const unico = item.vehiculos.length === 1;
+                  const desplegado = abierto === item.idCliente || Boolean(busqueda);
+
+                  return (
+                    <View style={[estilos.tarjeta, { padding: 0, overflow: 'hidden' }]}>
+                      <Pressable
+                        onPress={() =>
+                          unico && !desplegado
+                            ? alSeleccionar(item.vehiculos[0])
+                            : setAbierto(desplegado ? null : item.idCliente)
+                        }
+                        style={({ pressed }) => [
+                          {
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: ESPACIO.sm,
+                            padding: ESPACIO.md,
+                          },
+                          pressed && { backgroundColor: colores.superficieAlterna },
+                        ]}
+                      >
+                        <View
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: RADIO.completo,
+                            backgroundColor: colores.superficieAlterna,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Ionicons name="person" size={18} color={colores.textoSuave} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Texto style={{ fontSize: 15, fontWeight: '700', color: colores.texto }}>
+                            {item.nombre}
+                          </Texto>
+                          <Texto style={{ fontSize: 12, color: colores.textoSuave }}>
+                            {item.vehiculos.length === 1
+                              ? '1 vehiculo'
+                              : `${item.vehiculos.length} vehiculos`}
+                            {item.telefono ? ` · ${item.telefono}` : ''}
+                          </Texto>
+                        </View>
+                        <Ionicons
+                          name={unico && !desplegado ? 'chevron-forward' : desplegado ? 'chevron-up' : 'chevron-down'}
+                          size={18}
+                          color={colores.textoSuave}
+                        />
+                      </Pressable>
+
+                      {desplegado ? (
+                        <>
+                          {item.vehiculos.map((v) => (
+                            <Pressable
+                              key={v.id_vehiculo}
+                              onPress={() => alSeleccionar(v)}
+                              style={({ pressed }) => [
+                                {
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: ESPACIO.sm,
+                                  paddingVertical: ESPACIO.sm + 2,
+                                  paddingHorizontal: ESPACIO.md,
+                                  borderTopWidth: 1,
+                                  borderTopColor: colores.borde,
+                                  backgroundColor: colores.superficieAlterna,
+                                },
+                                pressed && { opacity: 0.7 },
+                              ]}
+                            >
+                              <Ionicons name="car-sport-outline" size={18} color={colores.acento} />
+                              <View style={{ flex: 1 }}>
+                                <Texto style={{ fontSize: 14, fontWeight: '700', color: colores.texto }}>
+                                  {v.placa}
+                                </Texto>
+                                <Texto style={{ fontSize: 12, color: colores.textoSuave }}>
+                                  {v.marca} {v.linea} {v.modelo_anio}
+                                  {v.kilometraje ? ` · ${v.kilometraje} km` : ''}
+                                </Texto>
+                              </View>
+                              <Ionicons name="chevron-forward" size={16} color={colores.textoSuave} />
+                            </Pressable>
+                          ))}
+
+                          <Pressable
+                            onPress={() => {
+                              setClienteDestino({
+                                id_cliente: item.idCliente,
+                                nombre_completo: item.nombre,
+                                telefono: item.telefono,
+                              });
+                              setVista('vehiculo');
+                            }}
+                            style={({ pressed }) => [
+                              {
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: ESPACIO.sm,
+                                paddingVertical: ESPACIO.sm + 2,
+                                paddingHorizontal: ESPACIO.md,
+                                borderTopWidth: 1,
+                                borderTopColor: colores.borde,
+                              },
+                              pressed && { opacity: 0.7 },
+                            ]}
+                          >
+                            <Ionicons name="add-circle-outline" size={18} color={colores.textoSuave} />
+                            <Texto style={{ fontSize: 13, color: colores.textoSuave, fontWeight: '600' }}>
+                              Agregar otro vehiculo a {item.nombre.split(' ')[0]}
+                            </Texto>
+                          </Pressable>
+                        </>
+                      ) : null}
+                    </View>
+                  );
+                }}
+              />
+            )}
+          </>
         )}
       </View>
     </Modal>
+  );
+}
+
+/** Alta rapida de cliente, dentro del ingreso de un vehiculo. */
+function FormularioClienteRapido({ alCancelar, alCrear, margenes }) {
+  const { estilos } = useTema();
+  const [nombreCompleto, setNombreCompleto] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+
+  const listo = nombreCompleto.trim().length >= 3 && telefono.trim().length >= 8;
+
+  async function guardar() {
+    setError('');
+    setOcupado(true);
+    try {
+      const respuesta = await api.crearCliente({
+        nombreCompleto: nombreCompleto.trim(),
+        telefono: telefono.trim(),
+        correo: correo.trim(),
+      });
+      alCrear(respuesta.cliente);
+    } catch (falla) {
+      setError(falla.message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={{ padding: ESPACIO.md, paddingBottom: ESPACIO.xl + margenes.bottom }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Texto style={estilos.subtitulo}>
+        Al guardar, sigue el registro del vehiculo y la orden continua donde quedo.
+      </Texto>
+
+      <Campo
+        etiqueta="Nombre completo"
+        value={nombreCompleto}
+        onChangeText={setNombreCompleto}
+        placeholder="Juan Perez Lopez"
+        icono="person-outline"
+        autoCapitalize="words"
+      />
+      <Campo
+        etiqueta="Telefono"
+        value={telefono}
+        onChangeText={setTelefono}
+        placeholder="45678901"
+        keyboardType="phone-pad"
+        icono="call-outline"
+        ayuda="Por aqui se avisa cuando el vehiculo queda listo."
+      />
+      <Campo
+        etiqueta="Correo"
+        value={correo}
+        onChangeText={setCorreo}
+        placeholder="Opcional"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        icono="mail-outline"
+      />
+
+      <Aviso mensaje={error} />
+
+      <Boton
+        titulo="Guardar y seguir con el vehiculo"
+        icono="arrow-forward"
+        alPresionar={guardar}
+        ocupado={ocupado}
+        deshabilitado={!listo}
+      />
+      <Boton titulo="Cancelar" variante="secundario" icono="close-outline" alPresionar={alCancelar} />
+    </ScrollView>
+  );
+}
+
+/** Alta rapida de vehiculo para un cliente ya identificado. */
+function FormularioVehiculoRapido({ cliente, alCancelar, alCrear, margenes }) {
+  const { colores, estilos } = useTema();
+  const [placa, setPlaca] = useState('');
+  const [marca, setMarca] = useState('');
+  const [linea, setLinea] = useState('');
+  const [modeloAnio, setModeloAnio] = useState('');
+  const [color, setColor] = useState('');
+  const [kilometraje, setKilometraje] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+
+  const anio = Number(modeloAnio);
+  const listo =
+    placa.trim().length >= 5 &&
+    marca.trim().length >= 2 &&
+    linea.trim().length >= 1 &&
+    anio >= 1950 &&
+    anio <= new Date().getFullYear() + 1;
+
+  async function guardar() {
+    setError('');
+    setOcupado(true);
+    try {
+      const respuesta = await api.crearVehiculo({
+        idCliente: cliente.id_cliente,
+        placa: placa.trim().toUpperCase(),
+        marca: marca.trim(),
+        linea: linea.trim(),
+        modeloAnio: anio,
+        color: color.trim(),
+        kilometraje: kilometraje === '' ? null : Number(kilometraje),
+      });
+      alCrear(respuesta.vehiculo, cliente);
+    } catch (falla) {
+      setError(falla.message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={{ padding: ESPACIO.md, paddingBottom: ESPACIO.xl + margenes.bottom }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={[estilos.tarjeta, { flexDirection: 'row', alignItems: 'center', gap: ESPACIO.sm }]}>
+        <Ionicons name="person" size={18} color={colores.acento} />
+        <View style={{ flex: 1 }}>
+          <Texto style={{ fontSize: 14, fontWeight: '700', color: colores.texto }}>
+            {cliente?.nombre_completo}
+          </Texto>
+          <Texto style={{ fontSize: 12, color: colores.textoSuave }}>Propietario del vehiculo</Texto>
+        </View>
+      </View>
+
+      <Campo
+        etiqueta="Placa"
+        value={placa}
+        onChangeText={setPlaca}
+        placeholder="P123ABC"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        icono="pricetag-outline"
+      />
+      <Campo etiqueta="Marca" value={marca} onChangeText={setMarca} placeholder="Toyota" autoCapitalize="words" />
+      <Campo etiqueta="Linea" value={linea} onChangeText={setLinea} placeholder="Corolla" autoCapitalize="words" />
+      <Campo
+        etiqueta="Modelo"
+        value={modeloAnio}
+        onChangeText={setModeloAnio}
+        placeholder="2015"
+        keyboardType="number-pad"
+        maxLength={4}
+      />
+      <Campo etiqueta="Color" value={color} onChangeText={setColor} placeholder="Opcional" autoCapitalize="words" />
+      <Campo
+        etiqueta="Kilometraje"
+        value={kilometraje}
+        onChangeText={setKilometraje}
+        placeholder="Opcional"
+        keyboardType="number-pad"
+        icono="speedometer-outline"
+      />
+
+      <Aviso mensaje={error} />
+
+      <Boton
+        titulo="Guardar y usar en esta orden"
+        icono="checkmark"
+        alPresionar={guardar}
+        ocupado={ocupado}
+        deshabilitado={!listo}
+      />
+      <Boton titulo="Cancelar" variante="secundario" icono="close-outline" alPresionar={alCancelar} />
+    </ScrollView>
   );
 }

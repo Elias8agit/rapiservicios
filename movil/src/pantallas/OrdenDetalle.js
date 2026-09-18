@@ -7,7 +7,8 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, TouchableOpacity, View } from 'react-native';
+import { Texto } from '../componentes/Texto';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +18,7 @@ import { AvisoConReintento, Boton, Cargando, Distintivo } from '../componentes/C
 import { ESPACIO, RADIO, useTema } from '../tema';
 import { ESTADOS_ORDEN } from '../../configuracion';
 
-export default function OrdenDetalle({ route }) {
+export default function OrdenDetalle({ route, navigation }) {
   const { colores, estilos } = useTema();
   const { idOrden } = route.params;
 
@@ -129,24 +130,55 @@ export default function OrdenDetalle({ route }) {
     <ScrollView style={estilos.pantalla} contentContainerStyle={estilos.contenido}>
       <View style={estilos.tarjeta}>
         <View style={estilos.fila}>
-          <Text style={estilos.titulo}>{orden.codigo_consulta}</Text>
+          <Texto style={estilos.titulo}>{orden.codigo_consulta}</Texto>
           <Distintivo texto={orden.estado?.nombre_estado} color={colores.primarioSuave} />
         </View>
-        <Text style={estilos.tarjetaDetalle}>
+        <Texto style={estilos.tarjetaDetalle}>
           {orden.vehiculo?.placa} · {orden.vehiculo?.marca} {orden.vehiculo?.linea} {orden.vehiculo?.modelo_anio}
-        </Text>
-        <Text style={estilos.tarjetaDetalle}>Cliente: {orden.vehiculo?.cliente?.nombre_completo}</Text>
-        <Text style={estilos.tarjetaDetalle}>Telefono: {orden.vehiculo?.cliente?.telefono}</Text>
-        <Text style={estilos.tarjetaDetalle}>Recibio: {orden.usuario?.nombre_completo}</Text>
-        <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.sm, color: colores.texto }]}>
+        </Texto>
+        <Texto style={estilos.tarjetaDetalle}>Cliente: {orden.vehiculo?.cliente?.nombre_completo}</Texto>
+        <Texto style={estilos.tarjetaDetalle}>Telefono: {orden.vehiculo?.cliente?.telefono}</Texto>
+        <Texto style={estilos.tarjetaDetalle}>Recibio: {orden.usuario?.nombre_completo}</Texto>
+        <Texto style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.sm, color: colores.texto }]}>
           {orden.descripcion_falla}
-        </Text>
+        </Texto>
+
+        {/* Acceso al historial del vehiculo.
+            Reside aqui porque es al diagnosticar cuando hace falta: si el
+            vehiculo ya vino por lo mismo hace dos meses, el mecanico parte de
+            esa revision en lugar de repetirla. */}
+        {orden.vehiculo?.id_vehiculo ? (
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('HistorialVehiculo', {
+                vehiculo: orden.vehiculo,
+                idVehiculo: orden.vehiculo.id_vehiculo,
+              })
+            }
+            hitSlop={8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              marginTop: ESPACIO.md,
+              paddingTop: ESPACIO.sm,
+              borderTopWidth: 1,
+              borderTopColor: colores.borde,
+            }}
+          >
+            <Ionicons name="time-outline" size={16} color={colores.enlace} />
+            <Texto style={{ fontSize: 13, fontWeight: '700', color: colores.enlace, flex: 1 }}>
+              Ver historial de este vehiculo
+            </Texto>
+            <Ionicons name="chevron-forward" size={16} color={colores.textoSuave} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={estilos.tarjeta}>
-        <Text style={estilos.tarjetaTitulo}>Diagnostico sugerido</Text>
+        <Texto style={estilos.tarjetaTitulo}>Diagnostico sugerido</Texto>
         {diagnosticos.length === 0 ? (
-          <Text style={estilos.tarjetaDetalle}>La descripcion se derivo a revision manual.</Text>
+          <Texto style={estilos.tarjetaDetalle}>La descripcion se derivo a revision manual.</Texto>
         ) : (
           diagnosticos.map((d) => {
             const generativo = d.origen_interpretacion === 'GENERATIVO';
@@ -154,36 +186,36 @@ export default function OrdenDetalle({ route }) {
 
             return (
               <View key={d.id_diagnostico} style={{ marginTop: ESPACIO.sm }}>
-                <Text style={{ color: colores.texto, fontSize: 15, fontWeight: '600' }}>
+                <Texto style={{ color: colores.texto, fontSize: 15, fontWeight: '600' }}>
                   {d.categoria?.nombre_categoria ||
                     d.sistema_sugerido ||
                     'Sin correspondencia dentro del catalogo'}
-                </Text>
+                </Texto>
 
                 {/* Sin categoria del catalogo, el titulo ya presenta el
                     sistema que senala el asistente, de modo que repetirlo aqui
                     solo ocupa pantalla. */}
                 {d.categoria ? (
-                  <Text style={estilos.tarjetaDetalle}>Sistema: {d.categoria.sistema_vehicular}</Text>
+                  <Texto style={estilos.tarjetaDetalle}>Sistema: {d.categoria.sistema_vehicular}</Texto>
                 ) : !d.sistema_sugerido ? (
-                  <Text style={estilos.tarjetaDetalle}>
+                  <Texto style={estilos.tarjetaDetalle}>
                     La descripcion no permitio ubicar un sistema del vehiculo.
-                  </Text>
+                  </Texto>
                 ) : null}
 
                 {d.hallazgo ? (
-                  <Text style={[estilos.tarjetaDetalle, { color: colores.texto, marginTop: ESPACIO.xs }]}>
+                  <Texto style={[estilos.tarjetaDetalle, { color: colores.texto, marginTop: ESPACIO.xs }]}>
                     {d.hallazgo}
-                  </Text>
+                  </Texto>
                 ) : null}
 
-                <Text style={estilos.tarjetaDetalle}>
+                <Texto style={estilos.tarjetaDetalle}>
                   Confianza: {(Number(d.nivel_confianza) * 100).toFixed(1)} % · origen{' '}
                   {d.origen_interpretacion}
-                </Text>
+                </Texto>
 
                 {d.texto_interpretado ? (
-                  <Text style={estilos.tarjetaDetalle}>{d.texto_interpretado}</Text>
+                  <Texto style={estilos.tarjetaDetalle}>{d.texto_interpretado}</Texto>
                 ) : null}
 
                 {/* La procedencia de la lectura permanece a la vista. Una
@@ -201,18 +233,18 @@ export default function OrdenDetalle({ route }) {
                       borderColor: colores.aviso,
                     }}
                   >
-                    <Text style={{ color: colores.aviso, fontSize: 12, lineHeight: 17 }}>
+                    <Texto style={{ color: colores.aviso, fontSize: 12, lineHeight: 17 }}>
                       Esta lectura proviene del asistente, no de las reglas del taller. La averia
                       queda fuera del catalogo de doce categorias. Conviene confirmarla con criterio
                       propio antes de trabajar.
-                    </Text>
+                    </Texto>
                   </View>
                 ) : null}
 
                 {sinLectura ? (
-                  <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.xs, fontStyle: 'italic' }]}>
+                  <Texto style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.xs, fontStyle: 'italic' }]}>
                     La orden queda a criterio del mecanico.
-                  </Text>
+                  </Texto>
                 ) : null}
               </View>
             );
@@ -222,13 +254,13 @@ export default function OrdenDetalle({ route }) {
 
       <View style={estilos.tarjeta}>
         <View style={estilos.fila}>
-          <Text style={estilos.tarjetaTitulo}>Tareas de revision</Text>
-          <Text style={estilos.tarjetaDetalle}>
+          <Texto style={estilos.tarjetaTitulo}>Tareas de revision</Texto>
+          <Texto style={estilos.tarjetaDetalle}>
             {completadas} de {tareas.length}
-          </Text>
+          </Texto>
         </View>
         {tareas.length === 0 ? (
-          <Text style={estilos.tarjetaDetalle}>Sin tareas asignadas.</Text>
+          <Texto style={estilos.tarjetaDetalle}>Sin tareas asignadas.</Texto>
         ) : (
           tareas.map((t) => {
             // Una tarea procede del catalogo del taller o de una sugerencia
@@ -250,9 +282,9 @@ export default function OrdenDetalle({ route }) {
                   color={t.completada ? colores.exito : colores.textoSuave}
                 />
                 <View style={{ marginLeft: ESPACIO.sm, flex: 1 }}>
-                  <Text style={{ color: colores.texto, fontSize: 14 }}>{nombre}</Text>
+                  <Texto style={{ color: colores.texto, fontSize: 14 }}>{nombre}</Texto>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                    <Text style={estilos.tarjetaDetalle}>{minutos} minutos estimados</Text>
+                    <Texto style={estilos.tarjetaDetalle}>{minutos} minutos estimados</Texto>
                     {sugerida ? (
                       <View
                         style={{
@@ -265,9 +297,9 @@ export default function OrdenDetalle({ route }) {
                           borderColor: colores.aviso,
                         }}
                       >
-                        <Text style={{ color: colores.aviso, fontSize: 10, fontWeight: '700' }}>
+                        <Texto style={{ color: colores.aviso, fontSize: 10, fontWeight: '700' }}>
                           SUGERIDA
-                        </Text>
+                        </Texto>
                       </View>
                     ) : null}
                   </View>
@@ -277,21 +309,21 @@ export default function OrdenDetalle({ route }) {
           })
         )}
         {orden.tiempo_estimado_min ? (
-          <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.md, fontWeight: '600' }]}>
+          <Texto style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.md, fontWeight: '600' }]}>
             Tiempo total estimado: {orden.tiempo_estimado_min} minutos
-          </Text>
+          </Texto>
         ) : null}
       </View>
 
       <View style={estilos.tarjeta}>
         <View style={estilos.fila}>
-          <Text style={estilos.tarjetaTitulo}>Evidencia fotografica</Text>
+          <Texto style={estilos.tarjetaTitulo}>Evidencia fotografica</Texto>
           <TouchableOpacity onPress={agregarEvidencia}>
             <Ionicons name="camera" size={22} color={colores.primario} />
           </TouchableOpacity>
         </View>
         {fotografias.length === 0 ? (
-          <Text style={estilos.tarjetaDetalle}>Sin fotografias resguardadas.</Text>
+          <Texto style={estilos.tarjetaDetalle}>Sin fotografias resguardadas.</Texto>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: ESPACIO.sm }}>
             {fotografias.map((f) => (
@@ -312,7 +344,7 @@ export default function OrdenDetalle({ route }) {
                     <Ionicons name="image-outline" size={28} color={colores.textoSuave} />
                   </View>
                 )}
-                <Text style={[estilos.tarjetaDetalle, { textAlign: 'center' }]}>{f.etapa}</Text>
+                <Texto style={[estilos.tarjetaDetalle, { textAlign: 'center' }]}>{f.etapa}</Texto>
               </View>
             ))}
           </ScrollView>
@@ -320,14 +352,14 @@ export default function OrdenDetalle({ route }) {
       </View>
 
       <View style={estilos.tarjeta}>
-        <Text style={estilos.tarjetaTitulo}>Bitacora de estados</Text>
+        <Texto style={estilos.tarjetaTitulo}>Bitacora de estados</Texto>
         {bitacora.map((b) => (
           <View key={b.id_bitacora} style={{ marginTop: ESPACIO.sm }}>
-            <Text style={{ color: colores.texto, fontSize: 14 }}>{b.estado?.nombre_estado}</Text>
-            <Text style={estilos.tarjetaDetalle}>
+            <Texto style={{ color: colores.texto, fontSize: 14 }}>{b.estado?.nombre_estado}</Texto>
+            <Texto style={estilos.tarjetaDetalle}>
               {new Date(b.fecha_cambio).toLocaleString()} · {b.usuario?.nombre_completo}
-            </Text>
-            {b.comentario ? <Text style={estilos.tarjetaDetalle}>{b.comentario}</Text> : null}
+            </Texto>
+            {b.comentario ? <Texto style={estilos.tarjetaDetalle}>{b.comentario}</Texto> : null}
           </View>
         ))}
       </View>
@@ -342,7 +374,7 @@ export default function OrdenDetalle({ route }) {
           variante="principal"
         />
       ) : (
-        <Text style={[estilos.vacio, { marginTop: ESPACIO.md }]}>La orden concluyo el ciclo de estados.</Text>
+        <Texto style={[estilos.vacio, { marginTop: ESPACIO.md }]}>La orden concluyo el ciclo de estados.</Texto>
       )}
     </ScrollView>
   );

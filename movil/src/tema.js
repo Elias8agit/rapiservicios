@@ -56,6 +56,10 @@ const PALETA_CLARA = {
   textoSuave: '#5C6874',
   textoInverso: '#FFFFFF',
 
+  // Texto de accion secundaria. Se separa de 'primario' porque ese tono sirve
+  // de fondo de encabezado y, sobre fondo oscuro, como texto desaparece.
+  enlace: '#15191E',
+
   borde: '#DFE4E9',
   bordeFuerte: '#C3CBD3',
 
@@ -88,6 +92,8 @@ const PALETA_OSCURA = {
   texto: '#ECEFF3',
   textoSuave: '#98A3AE',
   textoInverso: '#0D1014',
+
+  enlace: '#F04A4F',
 
   borde: '#262E37',
   bordeFuerte: '#39434E',

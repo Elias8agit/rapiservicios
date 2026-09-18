@@ -120,4 +120,55 @@ enrutador.patch('/:id', requiereRol('PROPIETARIO'), async (peticion, respuesta) 
   return respuesta.json({ usuario: data });
 });
 
+/**
+ * Restablece la contrasena de un miembro del personal.
+ *
+ * El taller opera con tres personas y cuentas que pertenecen al negocio, no a
+ * un correo personal, de modo que la recuperacion por mensaje de correo no
+ * corresponde: el mecanico que olvida su contrasena se la pide al propietario,
+ * que la restablece desde su propio telefono y se la comunica de viva voz.
+ *
+ * La operacion pasa por la clave de servicio, exclusiva del servidor, y queda
+ * reservada al rol de propietario. Un mecanico no restablece la contrasena de
+ * otro ni la propia.
+ */
+enrutador.patch('/:id/contrasena', requiereRol('PROPIETARIO'), async (peticion, respuesta) => {
+  const { contrasena } = peticion.body || {};
+
+  if (!contrasena || String(contrasena).length < 8) {
+    return respuesta.status(400).json({ error: 'La contrasena requiere al menos ocho caracteres.' });
+  }
+
+  const { data: perfil, error: errorPerfil } = await clienteServicio
+    .from('usuario')
+    .select('id_usuario, nombre_completo, auth_uid')
+    .eq('id_usuario', Number(peticion.params.id))
+    .maybeSingle();
+
+  if (errorPerfil) {
+    return respuesta.status(500).json({ error: 'Ocurrio una falla al consultar el perfil.', detalle: errorPerfil.message });
+  }
+  if (!perfil) {
+    return respuesta.status(404).json({ error: 'El perfil solicitado no existe.' });
+  }
+  if (!perfil.auth_uid) {
+    return respuesta.status(409).json({
+      error: 'El perfil carece de cuenta de acceso asociada, de modo que no hay contrasena que restablecer.',
+    });
+  }
+
+  const { error } = await clienteServicio.auth.admin.updateUserById(perfil.auth_uid, {
+    password: String(contrasena),
+  });
+
+  if (error) {
+    return respuesta.status(400).json({ error: 'No se logro restablecer la contrasena.', detalle: error.message });
+  }
+
+  return respuesta.json({
+    usuario: { id_usuario: perfil.id_usuario, nombre_completo: perfil.nombre_completo },
+    mensaje: `La contrasena de ${perfil.nombre_completo} quedo restablecida.`,
+  });
+});
+
 module.exports = enrutador;

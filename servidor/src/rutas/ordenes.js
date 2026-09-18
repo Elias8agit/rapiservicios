@@ -27,7 +27,7 @@
 const express = require('express');
 const { clienteServicio } = require('../config/supabase');
 const { requiereSesion } = require('../middleware/autenticacion');
-const { clasificar } = require('../servicios/interpretacion');
+const { clasificar, complementar } = require('../servicios/interpretacion');
 const { evaluar } = require('../servicios/motorReglas');
 const { subirFotografia, obtenerEnlace } = require('../servicios/almacenamiento');
 const { generarCodigoConsulta } = require('../utilidades/codigo');
@@ -191,7 +191,24 @@ enrutador.post('/', async (peticion, respuesta) => {
     // La interpretacion recibe unicamente la primera imagen. Enviar varias
     // multiplicaria la demora del servicio externo sin aportar certeza: la
     // primera es la que el mecanico eligio para mostrar la falla.
-    const interpretacion = await clasificar(String(descripcionFalla), listaFotografias[0] || null);
+    // La orden no se registra sin lectura. Decision del usuario del 12 de
+    // septiembre de 2026: una orden en blanco no es un resultado aceptable, de
+    // modo que ante una falla de la capa de interpretacion nada se escribe y el
+    // mecanico reintenta con el formulario intacto.
+    let interpretacion;
+    try {
+      interpretacion = await clasificar(String(descripcionFalla), listaFotografias[0] || null);
+    } catch (falla) {
+      if (!falla.interpretacionFallida) throw falla;
+      return respuesta.status(503).json({
+        codigo: 'INTERPRETACION',
+        error:
+          'El diagnostico asistido no logro interpretar el ingreso, de modo que la orden no se ' +
+          'registro. Nada se perdio: al reintentar se envian de nuevo la descripcion y las ' +
+          'fotografias.',
+        detalle: `${falla.message}${falla.detalle ? ` ${falla.detalle}` : ''}`,
+      });
+    }
 
     // NIVEL 1. La categoria pertenece al catalogo del taller, de modo que la
     // base de conocimiento propia decide las tareas y el tiempo.
@@ -207,13 +224,35 @@ enrutador.post('/', async (peticion, respuesta) => {
     // NIVEL 2. El catalogo no cubre la averia y la capa de interpretacion
     // propuso tareas por cuenta propia. Esas tareas sostienen la orden y
     // quedan marcadas como sugerencia, nunca como decision del taller.
-    const tareasSugeridas =
-      !diagnostico.aplicada && interpretacion.hayFalla ? interpretacion.tareasSugeridas || [] : [];
+    //
+    // PROFUNDIDAD COMPLEMENTARIA sobre el nivel 1. Cuando el motor de reglas si
+    // resolvio, se le consulta al servicio que le falta a ESTE caso concreto,
+    // pasandole las tareas que el taller ya asigno junto con la fotografia. El
+    // servicio complementa una decision tomada; no la discute ni la repite. La
+    // profundidad guarda proporcion con la evidencia recibida.
+    let tareasSugeridas = [];
+    let motivoComplemento = null;
+
+    if (diagnostico.aplicada) {
+      const complemento = await complementar({
+        descripcion: String(descripcionFalla),
+        fotografia: listaFotografias[0] || null,
+        categoria: diagnostico.categoria,
+        sistema: diagnostico.sistemaVehicular,
+        tareasDelTaller: (diagnostico.tareas || []).map((t) => t.nombre),
+      });
+      tareasSugeridas = complemento.tareas;
+      motivoComplemento = complemento.motivo || null;
+    } else if (interpretacion.hayFalla) {
+      tareasSugeridas = interpretacion.tareasSugeridas || [];
+    }
 
     const tiempoSugeridoTotal = tareasSugeridas.reduce((total, t) => total + t.minutos, 0);
 
+    // El tiempo de la orden reune las dos procedencias: el que fijo el motor de
+    // reglas y el de la revision complementaria, porque ambas se ejecutan.
     const tiempoEstimadoOrden = diagnostico.aplicada
-      ? diagnostico.tiempoEstimadoMin
+      ? (diagnostico.tiempoEstimadoMin || 0) + tiempoSugeridoTotal || null
       : tiempoSugeridoTotal || null;
 
     const idEstadoInicial = await idDeEstado('RECIBIDO');
@@ -257,7 +296,14 @@ enrutador.post('/', async (peticion, respuesta) => {
       id_categoria: interpretacion.idCategoria || null,
       origen_interpretacion: origenInterpretacion,
       nivel_confianza: Number(interpretacion.nivelConfianza || 0),
-      texto_interpretado: interpretacion.justificacion || null,
+      // La justificacion conserva ademas el motivo de la revision
+      // complementaria. Deja constancia de que observo el servicio para
+      // proponer esas tareas, o de por que no propuso ninguna, que es lo que
+      // permite despues revisar si la capa aporta o estorba.
+      texto_interpretado:
+        [interpretacion.justificacion, motivoComplemento && `Revision complementaria: ${motivoComplemento}`]
+          .filter(Boolean)
+          .join(' ') || null,
       sistema_sugerido: interpretacion.sistemaSugerido || null,
       hallazgo: interpretacion.hallazgo || null,
     });

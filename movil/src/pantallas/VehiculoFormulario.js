@@ -7,17 +7,8 @@
  */
 
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, TouchableOpacity, View } from 'react-native';
+import { Texto, EntradaTexto } from '../componentes/Texto';
 
 import { api } from '../api/cliente';
 import { Aviso, Boton, Campo, Cargando } from '../componentes/Comunes';
@@ -86,11 +77,11 @@ export default function VehiculoFormulario({ navigation, route }) {
   return (
     <KeyboardAvoidingView style={estilos.pantalla} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={estilos.contenido}>
-        <Text style={estilos.etiqueta}>Cliente propietario</Text>
+        <Texto style={estilos.etiqueta}>Cliente propietario</Texto>
         <TouchableOpacity style={estilos.campo} onPress={() => setVentanaVisible(true)} activeOpacity={0.7}>
-          <Text style={{ color: cliente ? colores.texto : colores.textoSuave, fontSize: 15 }}>
+          <Texto style={{ color: cliente ? colores.texto : colores.textoSuave, fontSize: 15 }}>
             {cliente ? cliente.nombre_completo : 'Seleccionar cliente'}
-          </Text>
+          </Texto>
         </TouchableOpacity>
 
         <Campo
@@ -166,12 +157,12 @@ export function SelectorCliente({ visible, alCerrar, alSeleccionar }) {
       <View style={[estilos.pantalla, { paddingTop: 56 }]}>
         <View style={{ padding: ESPACIO.md }}>
           <View style={estilos.fila}>
-            <Text style={estilos.titulo}>Seleccionar cliente</Text>
+            <Texto style={estilos.titulo}>Seleccionar cliente</Texto>
             <TouchableOpacity onPress={alCerrar}>
-              <Text style={{ color: colores.primario, fontWeight: '600' }}>Cerrar</Text>
+              <Texto style={{ color: colores.enlace, fontWeight: '600' }}>Cerrar</Texto>
             </TouchableOpacity>
           </View>
-          <TextInput
+          <EntradaTexto
             style={estilos.campo}
             placeholder="Buscar por nombre o telefono"
             placeholderTextColor={colores.textoSuave}
@@ -188,11 +179,11 @@ export function SelectorCliente({ visible, alCerrar, alSeleccionar }) {
             data={clientes}
             keyExtractor={(item) => String(item.id_cliente)}
             contentContainerStyle={{ paddingHorizontal: ESPACIO.md, paddingBottom: ESPACIO.xl }}
-            ListEmptyComponent={<Text style={estilos.vacio}>Sin coincidencias.</Text>}
+            ListEmptyComponent={<Texto style={estilos.vacio}>Sin coincidencias.</Texto>}
             renderItem={({ item }) => (
               <TouchableOpacity style={estilos.tarjeta} onPress={() => alSeleccionar(item)} activeOpacity={0.7}>
-                <Text style={estilos.tarjetaTitulo}>{item.nombre_completo}</Text>
-                <Text style={estilos.tarjetaDetalle}>Telefono {item.telefono}</Text>
+                <Texto style={estilos.tarjetaTitulo}>{item.nombre_completo}</Texto>
+                <Texto style={estilos.tarjetaDetalle}>Telefono {item.telefono}</Texto>
               </TouchableOpacity>
             )}
           />

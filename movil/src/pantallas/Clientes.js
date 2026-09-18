@@ -3,7 +3,8 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, TouchableOpacity, View } from 'react-native';
+import { Texto, EntradaTexto } from '../componentes/Texto';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,7 +49,7 @@ export default function Clientes({ navigation }) {
   return (
     <View style={estilos.pantalla}>
       <View style={{ padding: ESPACIO.md, paddingBottom: ESPACIO.sm }}>
-        <TextInput
+        <EntradaTexto
           style={estilos.campo}
           placeholder="Buscar por nombre o telefono"
           placeholderTextColor={colores.textoSuave}
@@ -68,16 +69,16 @@ export default function Clientes({ navigation }) {
           keyExtractor={(item) => String(item.id_cliente)}
           contentContainerStyle={{ paddingHorizontal: ESPACIO.md, paddingBottom: 110 + margenes.bottom }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={() => consultar(busqueda)} />}
-          ListEmptyComponent={<Text style={estilos.vacio}>Sin clientes registrados todavia.</Text>}
+          ListEmptyComponent={<Texto style={estilos.vacio}>Sin clientes registrados todavia.</Texto>}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={estilos.tarjeta}
               activeOpacity={0.7}
               onPress={() => navigation.navigate('ClienteFormulario', { cliente: item })}
             >
-              <Text style={estilos.tarjetaTitulo}>{item.nombre_completo}</Text>
-              <Text style={estilos.tarjetaDetalle}>Telefono {item.telefono}</Text>
-              {item.correo ? <Text style={estilos.tarjetaDetalle}>{item.correo}</Text> : null}
+              <Texto style={estilos.tarjetaTitulo}>{item.nombre_completo}</Texto>
+              <Texto style={estilos.tarjetaDetalle}>Telefono {item.telefono}</Texto>
+              {item.correo ? <Texto style={estilos.tarjetaDetalle}>{item.correo}</Texto> : null}
             </TouchableOpacity>
           )}
         />

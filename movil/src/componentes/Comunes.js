@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Pressable, TouchableOpacity, View } from 'react-native';
+import { Texto, EntradaTexto } from './Texto';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ESPACIO, RADIO, useTema } from '../tema';
@@ -50,9 +51,9 @@ export function Boton({
           {icono ? (
             <Ionicons name={icono} size={19} color={colorContenido} style={{ marginRight: 8 }} />
           ) : null}
-          <Text style={[estilos.botonTexto, variante === 'secundario' && estilos.botonTextoSecundario]}>
+          <Texto style={[estilos.botonTexto, variante === 'secundario' && estilos.botonTextoSecundario]}>
             {titulo}
-          </Text>
+          </Texto>
         </>
       )}
     </Pressable>
@@ -65,29 +66,58 @@ export function Boton({
  * @param {string} ayuda Indicacion breve bajo el campo. Orienta antes de que
  *        la persona se equivoque, en lugar de corregirla despues.
  */
-export function Campo({ etiqueta, ayuda, invalido = false, amplio = false, icono = null, ...propiedades }) {
+export function Campo({
+  etiqueta,
+  ayuda,
+  invalido = false,
+  amplio = false,
+  icono = null,
+  secreto = false,
+  ...propiedades
+}) {
   const { colores, estilos } = useTema();
   const [enfocado, setEnfocado] = useState(false);
 
+  // Una contrasena escrita a ciegas se equivoca, y el mecanico teclea con las
+  // manos sucias y el telefono al sol. El revelado corre por cuenta de quien
+  // escribe, que sabe si alguien lo observa.
+  const [revelado, setRevelado] = useState(false);
+
   return (
     <View>
-      {etiqueta ? <Text style={estilos.etiqueta}>{etiqueta}</Text> : null}
+      {etiqueta ? <Texto style={estilos.etiqueta}>{etiqueta}</Texto> : null}
 
       <View style={{ justifyContent: 'center' }}>
-        <TextInput
+        <EntradaTexto
           style={[
             estilos.campo,
             amplio && estilos.campoAmplio,
             icono && { paddingLeft: 42 },
+            secreto && { paddingRight: 46 },
             enfocado && estilos.campoActivo,
             invalido && estilos.campoInvalido,
           ]}
           placeholderTextColor={colores.textoSuave}
           multiline={amplio}
+          secureTextEntry={secreto && !revelado}
           onFocus={() => setEnfocado(true)}
           onBlur={() => setEnfocado(false)}
           {...propiedades}
         />
+
+        {secreto ? (
+          <Pressable
+            onPress={() => setRevelado((previo) => !previo)}
+            hitSlop={10}
+            style={{ position: 'absolute', right: 14 }}
+          >
+            <Ionicons
+              name={revelado ? 'eye-off-outline' : 'eye-outline'}
+              size={21}
+              color={colores.textoSuave}
+            />
+          </Pressable>
+        ) : null}
         {icono ? (
           <Ionicons
             name={icono}
@@ -98,7 +128,7 @@ export function Campo({ etiqueta, ayuda, invalido = false, amplio = false, icono
         ) : null}
       </View>
 
-      {ayuda ? <Text style={estilos.ayuda}>{ayuda}</Text> : null}
+      {ayuda ? <Texto style={estilos.ayuda}>{ayuda}</Texto> : null}
     </View>
   );
 }
@@ -127,7 +157,7 @@ export function Aviso({ mensaje, tipo = 'error' }) {
   return (
     <View style={[estilos.aviso, fondo]}>
       <Ionicons name={ICONO_AVISO[tipo] || ICONO_AVISO.error} size={19} color={color} />
-      <Text style={{ color, fontSize: 13, flex: 1, lineHeight: 18 }}>{mensaje}</Text>
+      <Texto style={{ color, fontSize: 13, flex: 1, lineHeight: 18 }}>{mensaje}</Texto>
     </View>
   );
 }
@@ -147,13 +177,13 @@ export function AvisoConReintento({ error, alReintentar, ocupado = false }) {
     <View style={[estilos.aviso, estilos.avisoError, { flexDirection: 'column', alignItems: 'stretch' }]}>
       <View style={{ flexDirection: 'row', gap: ESPACIO.sm }}>
         <Ionicons name="alert-circle" size={19} color={colores.alerta} />
-        <Text style={{ color: colores.alerta, fontSize: 13, flex: 1, lineHeight: 18 }}>{error.message}</Text>
+        <Texto style={{ color: colores.alerta, fontSize: 13, flex: 1, lineHeight: 18 }}>{error.message}</Texto>
       </View>
 
       {error.direccion ? (
-        <Text style={{ color: colores.textoSuave, fontSize: 11, marginTop: 6 }}>
+        <Texto style={{ color: colores.textoSuave, fontSize: 11, marginTop: 6 }}>
           Direccion consultada: {error.direccion}
-        </Text>
+        </Texto>
       ) : null}
 
       {recuperable && alReintentar ? (
@@ -179,7 +209,7 @@ export function AvisoConReintento({ error, alReintentar, ocupado = false }) {
           ) : (
             <>
               <Ionicons name="refresh" size={15} color={colores.alerta} />
-              <Text style={{ color: colores.alerta, fontSize: 13, fontWeight: '700' }}>Reintentar</Text>
+              <Texto style={{ color: colores.alerta, fontSize: 13, fontWeight: '700' }}>Reintentar</Texto>
             </>
           )}
         </TouchableOpacity>
@@ -194,7 +224,7 @@ export function Cargando({ texto = 'Consultando...' }) {
   return (
     <View style={{ paddingVertical: 40, alignItems: 'center' }}>
       <ActivityIndicator color={colores.acento} size="large" />
-      <Text style={{ marginTop: ESPACIO.sm, color: colores.textoSuave, fontSize: 13 }}>{texto}</Text>
+      <Texto style={{ marginTop: ESPACIO.sm, color: colores.textoSuave, fontSize: 13 }}>{texto}</Texto>
     </View>
   );
 }
@@ -222,11 +252,11 @@ export function EstadoVacio({ icono = 'file-tray-outline', titulo, detalle, acci
       >
         <Ionicons name={icono} size={32} color={colores.textoSuave} />
       </View>
-      <Text style={{ fontSize: 16, fontWeight: '700', color: colores.texto, textAlign: 'center' }}>
+      <Texto style={{ fontSize: 16, fontWeight: '700', color: colores.texto, textAlign: 'center' }}>
         {titulo}
-      </Text>
+      </Texto>
       {detalle ? (
-        <Text
+        <Texto
           style={{
             fontSize: 13,
             color: colores.textoSuave,
@@ -236,7 +266,7 @@ export function EstadoVacio({ icono = 'file-tray-outline', titulo, detalle, acci
           }}
         >
           {detalle}
-        </Text>
+        </Texto>
       ) : null}
       {accion ? <View style={{ marginTop: ESPACIO.sm, alignSelf: 'stretch' }}>{accion}</View> : null}
     </View>
@@ -248,7 +278,7 @@ export function Distintivo({ texto, color = null }) {
   const { colores, estilos } = useTema();
   return (
     <View style={[estilos.distintivo, { backgroundColor: color || colores.primarioSuave }]}>
-      <Text style={estilos.distintivoTexto}>{texto}</Text>
+      <Texto style={estilos.distintivoTexto}>{texto}</Texto>
     </View>
   );
 }
@@ -300,7 +330,7 @@ export function SelectorSegmentado({ opciones, valor, alCambiar }) {
                 color={activo ? colores.acento : colores.textoSuave}
               />
             ) : null}
-            <Text
+            <Texto
               style={{
                 fontSize: 13,
                 fontWeight: activo ? '700' : '600',
@@ -308,7 +338,7 @@ export function SelectorSegmentado({ opciones, valor, alCambiar }) {
               }}
             >
               {opcion.texto}
-            </Text>
+            </Texto>
           </Pressable>
         );
       })}

@@ -10,7 +10,8 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { Texto, EntradaTexto } from '../componentes/Texto';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -92,7 +93,7 @@ export default function Ordenes({ navigation }) {
       {/* Buscador */}
       <View style={{ paddingHorizontal: ESPACIO.md, paddingTop: ESPACIO.md }}>
         <View style={{ justifyContent: 'center' }}>
-          <TextInput
+          <EntradaTexto
             style={[estilos.campo, { paddingLeft: 42, paddingRight: busqueda ? 42 : ESPACIO.md }]}
             placeholder="Buscar por codigo, placa o cliente"
             placeholderTextColor={colores.textoSuave}
@@ -118,11 +119,16 @@ export default function Ordenes({ navigation }) {
         </View>
       </View>
 
-      {/* Filtros por etapa */}
+      {/* Filtros por etapa.
+          La tira no declara un alto propio. Un alto fijo obliga a anticipar
+          cuanto ocupa un renglon de texto, y ese alto depende de la
+          tipografia: con una fuente de interfaz entra, con una de trazo alto
+          se recorta. Sin alto declarado, la tira mide lo que ocupan los chips
+          y el recorte no puede ocurrir. */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ maxHeight: 60, flexGrow: 0 }}
+        style={{ flexGrow: 0, flexShrink: 0 }}
         contentContainerStyle={{
           paddingHorizontal: ESPACIO.md,
           paddingVertical: ESPACIO.sm,
@@ -156,7 +162,7 @@ export default function Ordenes({ navigation }) {
                   color={activo ? '#FFFFFF' : marca.color}
                 />
               ) : null}
-              <Text
+              <Texto
                 style={{
                   color: activo ? '#FFFFFF' : colores.textoSuave,
                   fontSize: 12,
@@ -165,7 +171,7 @@ export default function Ordenes({ navigation }) {
                 }}
               >
                 {estado || 'TODAS'}
-              </Text>
+              </Texto>
             </Pressable>
           );
         })}
@@ -237,12 +243,12 @@ export default function Ordenes({ navigation }) {
                       <Ionicons name={marca.icono} size={18} color={marca.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 17, fontWeight: '800', color: colores.texto, letterSpacing: 0.5 }}>
+                      <Texto style={{ fontSize: 17, fontWeight: '800', color: colores.texto, letterSpacing: 0.5 }}>
                         {item.codigo_consulta}
-                      </Text>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: marca.color, letterSpacing: 0.4 }}>
+                      </Texto>
+                      <Texto style={{ fontSize: 11, fontWeight: '700', color: marca.color, letterSpacing: 0.4 }}>
                         {item.estado?.nombre_estado}
-                      </Text>
+                      </Texto>
                     </View>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colores.textoSuave} />
@@ -252,31 +258,31 @@ export default function Ordenes({ navigation }) {
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="car-sport-outline" size={14} color={colores.textoSuave} />
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: colores.texto }}>
+                  <Texto style={{ fontSize: 13, fontWeight: '600', color: colores.texto }}>
                     {item.vehiculo?.placa}
-                  </Text>
-                  <Text style={{ fontSize: 13, color: colores.textoSuave }}>
+                  </Texto>
+                  <Texto style={{ fontSize: 13, color: colores.textoSuave }}>
                     {item.vehiculo?.marca} {item.vehiculo?.linea}
-                  </Text>
+                  </Texto>
                 </View>
 
-                <Text style={[estilos.tarjetaDetalle, { marginTop: 6 }]} numberOfLines={2}>
+                <Texto style={[estilos.tarjetaDetalle, { marginTop: 6 }]} numberOfLines={2}>
                   {item.descripcion_falla}
-                </Text>
+                </Texto>
 
                 <View style={[estilos.fila, { marginTop: ESPACIO.sm }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                     <Ionicons name="person-outline" size={13} color={colores.textoSuave} />
-                    <Text style={{ fontSize: 12, color: colores.textoSuave }} numberOfLines={1}>
+                    <Texto style={{ fontSize: 12, color: colores.textoSuave }} numberOfLines={1}>
                       {item.vehiculo?.cliente?.nombre_completo}
-                    </Text>
+                    </Texto>
                   </View>
                   {item.tiempo_estimado_min ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <Ionicons name="time-outline" size={13} color={colores.textoSuave} />
-                      <Text style={{ fontSize: 12, color: colores.textoSuave, fontWeight: '600' }}>
+                      <Texto style={{ fontSize: 12, color: colores.textoSuave, fontWeight: '600' }}>
                         {item.tiempo_estimado_min} min
-                      </Text>
+                      </Texto>
                     </View>
                   ) : null}
                 </View>
@@ -310,7 +316,7 @@ export default function Ordenes({ navigation }) {
         onPress={() => navigation.navigate('OrdenNueva')}
       >
         <Ionicons name="add" size={24} color="#FFFFFF" />
-        <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Nueva orden</Text>
+        <Texto style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '700' }}>Nueva orden</Texto>
       </Pressable>
     </View>
   );

@@ -221,6 +221,8 @@ export const api = {
   salir: () => enviar('/autenticacion/salida', {}),
   listarUsuarios: () => obtener('/usuarios'),
   crearUsuario: (datos) => enviar('/usuarios', datos),
+  restablecerContrasena: (idUsuario, contrasena) =>
+    modificar(`/usuarios/${idUsuario}/contrasena`, { contrasena }),
 
   // Modulo M2
   listarClientes: (busqueda = '') => obtener(`/clientes${busqueda ? `?busqueda=${encodeURIComponent(busqueda)}` : ''}`),

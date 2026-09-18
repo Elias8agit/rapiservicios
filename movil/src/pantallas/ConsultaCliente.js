@@ -6,7 +6,8 @@
  */
 
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Texto } from '../componentes/Texto';
 import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
@@ -40,10 +41,10 @@ export default function ConsultaCliente() {
   return (
     <KeyboardAvoidingView style={estilos.pantalla} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={estilos.contenido}>
-        <Text style={estilos.titulo}>Estado de la reparacion</Text>
-        <Text style={estilos.subtitulo}>
+        <Texto style={estilos.titulo}>Estado de la reparacion</Texto>
+        <Texto style={estilos.subtitulo}>
           Escribir el codigo que entrego el taller al momento de recibir el vehiculo.
-        </Text>
+        </Texto>
 
         <Campo
           etiqueta="Codigo de consulta"
@@ -61,9 +62,9 @@ export default function ConsultaCliente() {
         {resultado ? (
           <View style={{ marginTop: ESPACIO.lg }}>
             <View style={estilos.tarjeta}>
-              <Text style={estilos.tarjetaTitulo}>{resultado.vehiculo}</Text>
-              <Text style={estilos.tarjetaDetalle}>Placa {resultado.placa}</Text>
-              <Text
+              <Texto style={estilos.tarjetaTitulo}>{resultado.vehiculo}</Texto>
+              <Texto style={estilos.tarjetaDetalle}>Placa {resultado.placa}</Texto>
+              <Texto
                 style={{
                   marginTop: ESPACIO.md,
                   fontSize: 20,
@@ -72,14 +73,14 @@ export default function ConsultaCliente() {
                 }}
               >
                 {resultado.estado}
-              </Text>
-              <Text style={estilos.tarjetaDetalle}>Etapa {resultado.etapa}</Text>
+              </Texto>
+              <Texto style={estilos.tarjetaDetalle}>Etapa {resultado.etapa}</Texto>
             </View>
 
             <View style={estilos.tarjeta}>
               <View style={estilos.fila}>
-                <Text style={estilos.tarjetaTitulo}>Avance de revisiones</Text>
-                <Text style={{ color: colores.primario, fontWeight: '700' }}>{resultado.avance.porcentaje} %</Text>
+                <Texto style={estilos.tarjetaTitulo}>Avance de revisiones</Texto>
+                <Texto style={{ color: colores.enlace, fontWeight: '700' }}>{resultado.avance.porcentaje} %</Texto>
               </View>
               <View
                 style={{
@@ -105,13 +106,31 @@ export default function ConsultaCliente() {
                     size={18}
                     color={r.completada ? colores.exito : colores.textoSuave}
                   />
-                  <Text style={{ marginLeft: 8, color: colores.texto, fontSize: 13, flex: 1 }}>{r.nombre}</Text>
+                  <Texto style={{ marginLeft: 8, color: colores.texto, fontSize: 13, flex: 1 }}>{r.nombre}</Texto>
                 </View>
               ))}
+              {/* El numero corresponde al trabajo del mecanico sobre este
+                  vehiculo, no al tiempo que falta para la entrega. Presentado
+                  sin esa aclaracion, el cliente lo lee como una promesa y
+                  llega al taller antes de tiempo. */}
               {resultado.tiempoEstimadoMin ? (
-                <Text style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.md }]}>
-                  Tiempo estimado de atencion: {resultado.tiempoEstimadoMin} minutos
-                </Text>
+                <View
+                  style={{
+                    marginTop: ESPACIO.md,
+                    paddingTop: ESPACIO.md,
+                    borderTopWidth: 1,
+                    borderTopColor: colores.borde,
+                  }}
+                >
+                  <Texto style={[estilos.tarjetaDetalle, { fontWeight: '600' }]}>
+                    Trabajo de revision estimado: {resultado.tiempoEstimadoMin} minutos
+                  </Texto>
+                  <Texto style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.xs }]}>
+                    Corresponde al tiempo de mano de obra sobre el vehiculo. No incluye la espera
+                    por los demas vehiculos en el taller, ni la consecucion de repuestos. La fecha
+                    de entrega la confirma el taller.
+                  </Texto>
+                </View>
               ) : null}
             </View>
           </View>

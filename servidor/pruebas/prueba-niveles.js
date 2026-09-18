@@ -42,10 +42,34 @@ const CASOS = [
     descripcion: 'Se encendio la luz del ABS y el radio dejo de funcionar.',
     espera: 'Sin categoria del catalogo, con tareas sugeridas.',
   },
+  // Revision preventiva. Caso reclasificado del nivel 0 al nivel 2 el 12 de
+  // septiembre de 2026.
+  //
+  // Hasta esa fecha la capa se abstenia ante este texto y la orden nacia vacia.
+  // El usuario la reviso y determino que la abstencion estaba equivocada: un
+  // cliente que deja el vehiculo para que se lo revisen antes de viajar
+  // constituye trabajo real del taller, y una orden sin una sola tarea no le
+  // sirve al mecanico. Textual: "la cosa es que no quede en blanco eso".
+  //
+  // La ausencia de sintoma no equivale a la ausencia de trabajo.
+  {
+    nivel: 2,
+    descripcion: 'El cliente solicita una revision general antes de un viaje.',
+    espera: 'Una revision preventiva con tareas, aunque no exista un sintoma concreto.',
+  },
+
+  // Abstencion legitima.
+  //
+  // Este caso sustituye al anterior como guardian del nivel 0 y existe por una
+  // razon precisa: al retirarle a la capa el permiso de abstenerse ante un
+  // texto pobre, queda el riesgo contrario, que no sepa abstenerse nunca y
+  // fabrique una averia a partir de cualquier renglon. Un recado administrativo
+  // no menciona el vehiculo ni sintoma alguno, de modo que la respuesta
+  // correcta sigue siendo no interpretar.
   {
     nivel: 0,
-    descripcion: 'El cliente solicita una revision general antes de un viaje.',
-    espera: 'Sin falla concreta, sin tareas.',
+    descripcion: 'Recordarle a don Julio que quedo debiendo el saldo del trabajo anterior.',
+    espera: 'Sin falla, sin tareas: el texto trata de un cobro y no del vehiculo.',
   },
 ];
 

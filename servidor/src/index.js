@@ -22,8 +22,26 @@ const rutasVehiculos = require('./rutas/vehiculos');
 const rutasOrdenes = require('./rutas/ordenes');
 const rutasDiagnostico = require('./rutas/diagnostico');
 const rutasConsulta = require('./rutas/consulta');
+const { limitarConsulta } = require('./middleware/limitador');
 
 const app = express();
+
+/**
+ * Confianza en el proxy del proveedor de alojamiento.
+ *
+ * Render no entrega las peticiones de forma directa: las recibe su propio
+ * proxy y las reenvia al proceso. Sin esta linea, Express informa como origen
+ * la direccion del proxy, la misma para todo el mundo, y el limite de intentos
+ * de la consulta publica contaria a todos los clientes del taller dentro de un
+ * solo presupuesto: el primero que se equivocara ocho veces dejaria sin
+ * servicio a los demas.
+ *
+ * Con la confianza declarada, Express toma la direccion real del encabezado
+ * X-Forwarded-For. El valor 1 corresponde a un unico proxy por delante, que es
+ * la disposicion del proveedor; declarar mas saltos de los que existen
+ * permitiria falsificar el origen.
+ */
+app.set('trust proxy', 1);
 
 // El proveedor de alojamiento asigna el puerto de escucha por medio de la
 // variable PORT y lo cambia entre despliegues. La variable PUERTO conserva la
@@ -49,12 +67,13 @@ app.use(express.json({ limit: '12mb' }));
 app.get('/api/salud', async (peticion, respuesta) => {
   const informe = {
     servicio: 'Rapiservicios API',
-    version: '0.3.0',
+    version: '0.4.0',
     estado: 'operativo',
     supabase: configurado ? 'configurado' : 'sin configurar',
     baseDatos: 'sin verificar',
     demoraBaseMs: null,
     interpretacion: process.env.GEMINI_API_KEY ? 'Gemini' : 'respaldo local',
+    limiteConsulta: 'activo',
     fecha: new Date().toISOString(),
   };
 
@@ -94,7 +113,10 @@ app.use('/api/clientes', rutasClientes);
 app.use('/api/vehiculos', rutasVehiculos);
 app.use('/api/ordenes', rutasOrdenes);
 app.use('/api/diagnostico', rutasDiagnostico);
-app.use('/api/consulta', rutasConsulta);
+// La consulta del cliente atiende sin cuenta de acceso, de modo que es el
+// unico servicio expuesto a quien no pertenece al taller. Lleva por delante el
+// limite de intentos.
+app.use('/api/consulta', limitarConsulta, rutasConsulta);
 
 app.use((peticion, respuesta) => {
   respuesta.status(404).json({ error: 'El recurso solicitado no existe.' });
