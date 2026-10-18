@@ -16,11 +16,16 @@
 const express = require('express');
 const { clientePublico, clienteServicio, verificarConfiguracion } = require('../config/supabase');
 const { requiereSesion } = require('../middleware/autenticacion');
+const { limitarIngreso } = require('../middleware/limitador');
 
 const enrutador = express.Router();
 
-/** Inicia sesion con correo y contrasena. */
-enrutador.post('/ingreso', async (peticion, respuesta) => {
+/**
+ * Inicia sesion con correo y contrasena.
+ * El limite de intentos va delante: diez contrasenas rechazadas en quince
+ * minutos, por direccion o por cuenta, imponen quince minutos de espera.
+ */
+enrutador.post('/ingreso', limitarIngreso, async (peticion, respuesta) => {
   const { correo, contrasena } = peticion.body || {};
 
   if (!correo || !contrasena) {

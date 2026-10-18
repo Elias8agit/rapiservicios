@@ -1,5 +1,6 @@
 /**
- * LIMITE DE INTENTOS SOBRE LA CONSULTA PUBLICA DEL CLIENTE.
+ * LIMITE DE INTENTOS SOBRE LA CONSULTA PUBLICA DEL CLIENTE
+ * Y, DESDE EL 18 DE OCTUBRE DE 2026, SOBRE EL INICIO DE SESION (al final).
  *
  * MOTIVO
  *
@@ -161,14 +162,130 @@ function limitarConsulta(peticion, respuesta, siguiente) {
   return siguiente();
 }
 
-/** Vacia el registro. Corresponde a las pruebas, no a la operacion. */
+// ==========================================================================
+//  LIMITE DE INTENTOS SOBRE EL INICIO DE SESION (18 de octubre de 2026)
+// ==========================================================================
+//
+// Hasta esta fecha el inicio de sesion aceptaba contrasenas sin freno: desde
+// un mismo origen se podian probar todas las que se quisiera contra la cuenta
+// del propietario. El proveedor de autenticacion tiene sus propios limites,
+// pero los aplica a la direccion de quien le pregunta, y quien le pregunta es
+// siempre este servidor: un limite suyo frenaria a todo el taller a la vez, no
+// a quien esta probando.
+//
+// Solo cuentan las contrasenas rechazadas (respuesta 401). Una persona que
+// entra bien no gasta nada, y un servicio caido (503) no es culpa de quien
+// intenta.
+//
+// DOS LLAVES, POR LA MISMA RAZON QUE EN LA CONSULTA
+//
+//   Por direccion de origen    Frena a quien prueba muchas cuentas o muchas
+//                              contrasenas desde un mismo lugar.
+//   Por cuenta (correo)        Frena a quien prueba contra una misma cuenta
+//                              cambiando de direccion.
+//
+// El costo conocido de la llave por cuenta: alguien que conozca el correo del
+// propietario podria dejarlo quince minutos sin entrar a proposito, fallando
+// diez veces. En un taller de tres personas se acepta ese costo a cambio de
+// proteger la cuenta que lo administra todo; la alternativa es dejarla
+// expuesta a que adivinen su contrasena.
+
+/** Fallos admitidos dentro de la ventana antes de imponer la espera. */
+const MAXIMO_FALLOS_INGRESO = 10;
+const VENTANA_INGRESO_MS = 15 * 60 * 1000;
+const BLOQUEO_INGRESO_MS = 15 * 60 * 1000;
+
+/** Registro del inicio de sesion, aparte del de la consulta publica. */
+const registroIngreso = new Map();
+
+function asientoIngreso(llave) {
+  let asiento = registroIngreso.get(llave);
+  if (!asiento) {
+    asiento = { fallos: [], esperaHasta: 0 };
+    registroIngreso.set(llave, asiento);
+  }
+  return asiento;
+}
+
+function barrerIngreso(ahora = Date.now()) {
+  for (const [llave, asiento] of registroIngreso.entries()) {
+    const sinFallos = vigentes(asiento.fallos, ahora, VENTANA_INGRESO_MS).length === 0;
+    if (sinFallos && asiento.esperaHasta <= ahora) registroIngreso.delete(llave);
+  }
+}
+
+const temporizadorIngreso = setInterval(barrerIngreso, BARRIDO_MS);
+if (typeof temporizadorIngreso.unref === 'function') temporizadorIngreso.unref();
+
+/** Registra un fallo y, si corresponde, impone la espera. */
+function anotarFalloIngreso(llave, instante) {
+  const asiento = asientoIngreso(llave);
+  asiento.fallos = vigentes(asiento.fallos, instante, VENTANA_INGRESO_MS);
+  asiento.fallos.push(instante);
+  if (asiento.fallos.length >= MAXIMO_FALLOS_INGRESO) {
+    asiento.esperaHasta = instante + BLOQUEO_INGRESO_MS;
+    asiento.fallos = [];
+    console.warn(
+      `Inicio de sesion: ${llave} acumulo ${MAXIMO_FALLOS_INGRESO} contrasenas rechazadas ` +
+        `y queda en espera ${BLOQUEO_INGRESO_MS / 60000} minutos.`
+    );
+  }
+}
+
+/**
+ * Middleware del inicio de sesion. Va antes de la ruta /ingreso.
+ *
+ * El mensaje de espera es el mismo para las dos llaves y no confirma si el
+ * correo existe: decir "esta cuenta esta bloqueada" le revelaria a quien
+ * prueba que dio con un correo real.
+ */
+function limitarIngreso(peticion, respuesta, siguiente) {
+  const ahora = Date.now();
+  const direccion = `ip:${peticion.ip || peticion.socket?.remoteAddress || 'desconocida'}`;
+  const correo = String(peticion.body?.correo || '').trim().toLowerCase();
+  const cuenta = correo ? `cuenta:${correo}` : null;
+
+  const esperas = [registroIngreso.get(direccion), cuenta && registroIngreso.get(cuenta)]
+    .filter(Boolean)
+    .map((asiento) => asiento.esperaHasta)
+    .filter((hasta) => hasta > ahora);
+
+  if (esperas.length) {
+    const espera = segundosRestantes(Math.max(...esperas), ahora);
+    respuesta.set('Retry-After', String(espera));
+    return respuesta.status(429).json({
+      codigo: 'DEMASIADOS_INTENTOS',
+      error:
+        'Se alcanzo el limite de contrasenas incorrectas. Conviene esperar unos minutos; ' +
+        'si la contrasena se olvido, el propietario la puede restablecer.',
+      esperaSegundos: espera,
+    });
+  }
+
+  respuesta.on('finish', () => {
+    if (respuesta.statusCode !== 401) return;
+    const instante = Date.now();
+    anotarFalloIngreso(direccion, instante);
+    if (cuenta) anotarFalloIngreso(cuenta, instante);
+  });
+
+  return siguiente();
+}
+
+/** Vacia los registros. Corresponde a las pruebas, no a la operacion. */
 function reiniciarRegistro() {
   registro.clear();
+  registroIngreso.clear();
 }
 
 module.exports = {
   limitarConsulta,
+  limitarIngreso,
   reiniciarRegistro,
+  registroIngreso,
+  MAXIMO_FALLOS_INGRESO,
+  VENTANA_INGRESO_MS,
+  BLOQUEO_INGRESO_MS,
   barrer,
   registro,
   VENTANA_FLUJO_MS,

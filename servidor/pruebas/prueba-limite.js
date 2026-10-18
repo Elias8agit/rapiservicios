@@ -1,5 +1,6 @@
 /**
- * PRUEBA DEL LIMITE DE INTENTOS SOBRE LA CONSULTA PUBLICA.
+ * PRUEBA DEL LIMITE DE INTENTOS SOBRE LA CONSULTA PUBLICA
+ * Y SOBRE EL INICIO DE SESION (casos 7 a 11, desde el 18 de octubre de 2026).
  *
  * La prueba no toca la red ni la base de datos: ejercita el middleware con
  * peticiones y respuestas simuladas. De ahi que corra en cualquier momento, aun
@@ -11,10 +12,12 @@
 
 const {
   limitarConsulta,
+  limitarIngreso,
   reiniciarRegistro,
   registro,
   MAXIMO_FLUJO,
   MAXIMO_FALLOS,
+  MAXIMO_FALLOS_INGRESO,
 } = require('../src/middleware/limitador');
 
 let aciertos = 0;
@@ -37,8 +40,8 @@ function comprobar(afirmacion, condicion, detalle = '') {
  * @param {number} estadoFinal Estado con el que respondera la ruta.
  * @returns {{atendida:boolean, estado:number, cuerpo:object}}
  */
-function consultar(direccion, estadoFinal) {
-  const peticion = { ip: direccion };
+function consultar(direccion, estadoFinal, { middleware = limitarConsulta, cuerpo = {} } = {}) {
+  const peticion = { ip: direccion, body: cuerpo };
   const salida = { atendida: false, estado: 0, cuerpo: null };
   const oyentes = [];
 
@@ -59,7 +62,7 @@ function consultar(direccion, estadoFinal) {
     },
   };
 
-  limitarConsulta(peticion, respuesta, () => {
+  middleware(peticion, respuesta, () => {
     salida.atendida = true;
     salida.estado = estadoFinal;
     respuesta.statusCode = estadoFinal;
@@ -165,6 +168,71 @@ const desbordada = consultar('10.0.0.6', 200);
 comprobar(
   'El desborde de flujo se distingue del de codigos incorrectos',
   desbordada.cuerpo?.codigo === 'DEMASIADAS_CONSULTAS'
+);
+
+// --------------------------------------------------------------------------
+//  INICIO DE SESION
+// --------------------------------------------------------------------------
+/** Simula un intento de inicio de sesion con el estado que daria la ruta. */
+const ingresar = (direccion, correo, estado) =>
+  consultar(direccion, estado, { middleware: limitarIngreso, cuerpo: { correo } });
+
+console.log(`\n  Inicio de sesion: ${MAXIMO_FALLOS_INGRESO} contrasenas rechazadas por direccion o por cuenta`);
+
+console.log('\n  Caso 7: quien entra bien no gasta nada.');
+reiniciarRegistro();
+let entradasAtendidas = true;
+for (let i = 0; i < MAXIMO_FALLOS_INGRESO * 3; i += 1) {
+  if (!ingresar('10.1.0.1', 'mecanico@gmail.com', 200).atendida) entradasAtendidas = false;
+}
+comprobar(`${MAXIMO_FALLOS_INGRESO * 3} inicios de sesion correctos se atienden todos`, entradasAtendidas);
+
+console.log('\n  Caso 8: probar contrasenas desde un mismo origen queda detenido.');
+reiniciarRegistro();
+let detenidoIngreso = null;
+for (let i = 1; i <= MAXIMO_FALLOS_INGRESO + 2; i += 1) {
+  // Una cuenta distinta en cada intento: solo la llave por direccion puede frenarlo.
+  const r = ingresar('10.1.0.2', `cuenta${i}@gmail.com`, 401);
+  if (!r.atendida && detenidoIngreso === null) detenidoIngreso = i;
+}
+comprobar(
+  `La direccion queda detenida al intento ${MAXIMO_FALLOS_INGRESO + 1}`,
+  detenidoIngreso === MAXIMO_FALLOS_INGRESO + 1,
+  `se detuvo en ${detenidoIngreso}`
+);
+
+console.log('\n  Caso 9: probar contra una misma cuenta cambiando de origen tambien.');
+reiniciarRegistro();
+let detenidaCuenta = null;
+for (let i = 1; i <= MAXIMO_FALLOS_INGRESO + 2; i += 1) {
+  const r = ingresar(`10.2.0.${i}`, 'Propietario@Rapiservicios.gt', 401);
+  if (!r.atendida && detenidaCuenta === null) detenidaCuenta = i;
+}
+comprobar(
+  `La cuenta queda detenida al intento ${MAXIMO_FALLOS_INGRESO + 1}, aunque cambie la direccion y las mayusculas`,
+  detenidaCuenta === MAXIMO_FALLOS_INGRESO + 1,
+  `se detuvo en ${detenidaCuenta}`
+);
+const bloqueoCuenta = ingresar('10.9.9.9', 'propietario@rapiservicios.gt', 401);
+comprobar(
+  'El mensaje de espera usa 429 y no confirma que la cuenta exista',
+  bloqueoCuenta.estado === 429 && !/existe|bloquead/i.test(bloqueoCuenta.cuerpo?.error || '')
+);
+
+console.log('\n  Caso 10: un servicio caido no castiga a quien intenta.');
+reiniciarRegistro();
+let caidasAtendidas = true;
+for (let i = 0; i < MAXIMO_FALLOS_INGRESO + 2; i += 1) {
+  if (!ingresar('10.1.0.3', 'mecanico@gmail.com', 503).atendida) caidasAtendidas = false;
+}
+comprobar('Las respuestas 503 no suman fallos', caidasAtendidas);
+
+console.log('\n  Caso 11: los registros de la consulta y del ingreso no se mezclan.');
+reiniciarRegistro();
+for (let i = 0; i < MAXIMO_FALLOS + 1; i += 1) consultar('10.1.0.4', 404);
+comprobar(
+  'Una direccion bloqueada en la consulta publica todavia puede iniciar sesion',
+  ingresar('10.1.0.4', 'mecanico@gmail.com', 200).atendida
 );
 
 // --------------------------------------------------------------------------
