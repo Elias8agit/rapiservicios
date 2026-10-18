@@ -1,0 +1,73 @@
+@startuml
+!include _estilo.puml
+autonumber
+
+actor "Mecánico" as MEC
+participant "Aplicación\nmóvil" as APP
+participant "Servidor\nde aplicación" as API
+participant "Capa de\ninterpretación" as INT
+participant "Motor\nde reglas" as MOT
+database "Base\nde datos" as BD
+participant "Contenedor\nde fotografías" as STO
+
+MEC -> APP : Describe la falla y adjunta las fotografías
+APP -> API : POST /api/ordenes\n(vehículo, descripción, fotografías)
+note right of API
+  Longitud mínima de la descripción:
+  diez caracteres, o cuatro cuando el
+  mecánico adjunta fotografía.
+end note
+API -> BD : Consulta la ficha del vehículo
+BD --> API : Placa, kilometraje y tipo de caja
+
+API -> INT : clasificar(descripción, primera fotografía)
+note right of INT
+  La placa del vehículo permanece
+  dentro de la base del taller y
+  nunca viaja hacia el servicio.
+end note
+
+alt El servicio de interpretación falla
+  INT --> API : Error de lectura
+  API --> APP : 503, la orden no se registra
+  APP --> MEC : Reintento con el formulario intacto
+else Lectura obtenida
+  INT --> API : Categoría, confianza, origen y justificación
+
+  alt Nivel 1: la avería pertenece al catálogo
+    API -> MOT : evaluar(categoría, descripción,\nkilometraje, tipo de caja)
+    MOT -> BD : Consulta las reglas activas
+    BD --> MOT : Reglas y tareas asociadas
+    MOT --> API : Tareas de origen REGLA y tiempo estimado
+    API -> INT : complementar(tareas ya asignadas, fotografía)
+    INT --> API : Solo las tareas faltantes, origen GENERATIVO
+  else Nivel 2: la avería queda fuera del catálogo
+    INT --> API : Sistema afectado, hallazgo y tareas propuestas
+    note right of API
+      Todas las tareas quedan marcadas
+      con origen GENERATIVO.
+    end note
+  else Nivel 0: el ingreso no corresponde al vehículo
+    INT --> API : Abstención con el motivo
+  end
+
+  API -> BD : Inserta la orden con el código de consulta
+  API -> BD : Inserta el diagnóstico con la justificación
+  API -> BD : Inserta el detalle de tareas por origen
+  API -> BD : Inserta el primer asiento de la bitácora
+
+  loop Por cada fotografía
+    API -> STO : Resguarda la imagen
+    STO --> API : Ruta del archivo
+    API -> BD : Registra la fotografía
+  end
+  note right of API
+    La falla de una fotografía no
+    descarta a las demás ni invalida
+    la orden ya registrada.
+  end note
+
+  API --> APP : Orden con diagnóstico y nivel de atención
+  APP --> MEC : Tareas, tiempo estimado y código de consulta
+end
+@enduml

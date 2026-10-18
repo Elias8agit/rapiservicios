@@ -1,0 +1,161 @@
+@startuml
+' ==========================================================================
+'  FIGURA - DIAGRAMA DE ACTIVIDAD DEL PROCESO DE ORDEN Y DIAGNOSTICO
+'  Sistema con inteligencia artificial para generar ordenes de trabajo y
+'  diagnostico en el taller mecanico Rapiservicios, Villa Nueva, Guatemala.
+'
+'  Walter Estuardo Elias Ochoa, carne 0900228982.
+'  Universidad Mariano Galvez de Guatemala.
+'
+'  LO QUE EL DIAGRAMA DEMUESTRA. Los carriles separan a quien interpreta de
+'  quien decide. El servicio de interpretacion traduce la entrada del mecanico
+'  hacia una categoria del catalogo, o describe el sistema afectado cuando
+'  ninguna corresponde; el motor de reglas del taller determina las tareas y el
+'  tiempo. Esa division sostiene el planteamiento de sistemas expertos: el
+'  conocimiento propio del taller resuelve lo conocido y la capa generativa
+'  cubre lo que el catalogo no alcanza.
+'
+'  Los tres niveles de lectura corresponden a las tres ramas de la decision
+'  central.
+'
+'  El orden de los carriles no es arbitrario: el motor de reglas queda contiguo
+'  al servidor porque entre ambos ocurre el mayor intercambio, con lo cual el
+'  recorrido cruza menos veces la figura y esta entra dentro de una pagina.
+' ==========================================================================
+
+!theme plain
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam ArrowColor #15191E
+skinparam ConditionEndStyle hline
+
+skinparam activity {
+  BorderColor #5C6874
+  BackgroundColor #F4F6F8
+  FontColor #15191E
+  DiamondBorderColor #15191E
+  DiamondBackgroundColor #FFFFFF
+  StartColor #15191E
+  EndColor #15191E
+}
+skinparam swimlane {
+  BorderColor #15191E
+  TitleFontStyle bold
+}
+skinparam note {
+  BorderColor #9A5B00
+  BackgroundColor #FFF4E3
+  FontSize 11
+}
+
+' El orden de declaracion fija el orden de los carriles dentro de la figura.
+|#FFFFFF|Mecánico|
+|#F7F9FA|Servidor del taller|
+|#EEF1F4|Motor de reglas|
+|#F4F6F8|Servicio de interpretación|
+
+|Mecánico|
+start
+:Selecciona el cliente
+y el vehículo;
+note right
+  Ambos se registran sin
+  abandonar la orden
+end note
+:Describe la falla con
+sus propias palabras;
+:Adjunta hasta cuatro
+fotografías (opcional);
+:Envía el ingreso, reducido
+a 1280 píxeles por imagen;
+
+|Servidor del taller|
+:Recibe el ingreso y recupera
+la ficha del vehículo;
+note right
+  La placa nunca viaja
+  al servicio externo
+end note
+
+|Servicio de interpretación|
+:Lee la descripción
+y la fotografía;
+note right
+  Con fotografía adjunta, la imagen
+  manda sobre el texto: una
+  descripción pobre no impide
+  interpretar
+end note
+
+|Servidor del taller|
+if (¿El servicio respondió?) then (no)
+  :No registra la orden;
+  |Mecánico|
+  :Conserva el formulario
+  completo y reintenta;
+  stop
+else (sí)
+endif
+
+|Servidor del taller|
+if (¿Corresponde a una categoría\ndel catálogo del taller?) then (sí, NIVEL 1)
+
+  |Motor de reglas|
+  :Determina las tareas de revisión
+  y el tiempo estimado;
+  note right
+    Decide la base de conocimiento
+    del taller, no el servicio
+    de interpretación
+  end note
+  :Distingue el tipo de caja
+  según la ficha del vehículo;
+
+  |Servicio de interpretación|
+  :Propone solo la revisión que
+  le falta a este caso;
+  note right
+    Profundidad proporcional a la
+    evidencia: sin fotografía y texto
+    corto, ninguna; con fotografía y
+    texto detallado, hasta seis
+  end note
+
+  |Servidor del taller|
+  :Marca esas tareas como sugeridas,
+  nunca como decisión del taller;
+
+else (no)
+
+  |Servidor del taller|
+  if (¿Describe trabajo\ndel taller?) then (sí, NIVEL 2)
+    |Servicio de interpretación|
+    :Describe el sistema afectado
+    y propone las tareas;
+    |Servidor del taller|
+    :Registra el diagnóstico
+    con origen generativo;
+  else (no, NIVEL 0)
+    |Servidor del taller|
+    :Registra la abstención
+    junto con su motivo;
+  endif
+
+endif
+
+|Servidor del taller|
+:Reserva el código de consulta;
+:Registra la orden, el diagnóstico,
+el detalle de tareas, las fotografías
+y el primer asiento de la bitácora;
+
+|Mecánico|
+:Recibe la orden con el diagnóstico
+sugerido y el tiempo estimado;
+:Entrega el código de consulta
+al cliente;
+stop
+
+@enduml

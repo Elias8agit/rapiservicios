@@ -2,8 +2,27 @@
  * CONTEXTO DE SESION - MODULO M1.
  *
  * Conserva el testigo de acceso y el perfil del usuario dentro del
- * almacenamiento del dispositivo, de manera que el mecanico no repita el
- * inicio de sesion cada vez que abre la aplicacion.
+ * dispositivo, de manera que el mecanico no repita el inicio de sesion cada
+ * vez que abre la aplicacion.
+ *
+ * DONDE SE GUARDA CADA COSA (18 de octubre de 2026)
+ *
+ *   Testigos de acceso y de renovacion   Almacen cifrado del sistema
+ *                                         (expo-secure-store, que en Android
+ *                                         usa el Keystore). Son lo que permite
+ *                                         actuar en nombre de la persona.
+ *   Perfil (nombre, correo, rol)          AsyncStorage, sin cifrar. No es
+ *                                         secreto y se muestra en pantalla.
+ *
+ * Hasta esta fecha todo iba junto en AsyncStorage, que guarda en claro: en un
+ * telefono con acceso de administrador se podia leer el testigo y usarlo.
+ * Los testigos van en dos llaves separadas porque el almacen cifrado admite
+ * valores de hasta unos 2048 bytes y el testigo de acceso por si solo ronda
+ * la mitad.
+ *
+ * Al arrancar, una sesion guardada con el formato anterior se traslada al
+ * formato nuevo y la copia en claro se borra, de modo que nadie tiene que
+ * volver a iniciar sesion por la actualizacion.
  */
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -11,7 +30,85 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api, despertarServidor, establecerTestigo } from '../api/cliente';
 
-const LLAVE = 'rapiservicios.sesion';
+/**
+ * Almacen cifrado. Se carga con require dentro de un intento porque una
+ * compilacion de desarrollo anterior a este cambio no trae el modulo nativo:
+ * sin esta proteccion la aplicacion se cerraria al abrir mientras la
+ * compilacion nueva espera en la cola. En ese caso, y solo en ese caso, los
+ * testigos siguen en AsyncStorage como antes. El APK final incluye el modulo,
+ * porque figura entre las dependencias.
+ */
+let AlmacenSeguro = null;
+try {
+  // eslint-disable-next-line global-require
+  AlmacenSeguro = require('expo-secure-store');
+} catch (error) {
+  AlmacenSeguro = null;
+}
+
+/** Formato anterior: todo junto y en claro. Solo se lee para trasladarlo. */
+const LLAVE_ANTERIOR = 'rapiservicios.sesion';
+
+const LLAVE_TESTIGO = 'rapiservicios.testigo';
+const LLAVE_RENOVACION = 'rapiservicios.renovacion';
+const LLAVE_PERFIL = 'rapiservicios.perfil';
+
+async function guardarSecreto(llave, valor) {
+  if (AlmacenSeguro) {
+    if (valor) await AlmacenSeguro.setItemAsync(llave, String(valor));
+    else await AlmacenSeguro.deleteItemAsync(llave);
+    return;
+  }
+  if (valor) await AsyncStorage.setItem(llave, String(valor));
+  else await AsyncStorage.removeItem(llave);
+}
+
+async function leerSecreto(llave) {
+  if (AlmacenSeguro) return AlmacenSeguro.getItemAsync(llave);
+  return AsyncStorage.getItem(llave);
+}
+
+/** Guarda la sesion repartida entre el almacen cifrado y AsyncStorage. */
+async function guardarSesion(datos) {
+  await guardarSecreto(LLAVE_TESTIGO, datos.testigo);
+  await guardarSecreto(LLAVE_RENOVACION, datos.testigoRenovacion);
+  await AsyncStorage.setItem(LLAVE_PERFIL, JSON.stringify(datos.usuario || null));
+}
+
+/** Borra la sesion de todos los lugares, incluido el formato anterior. */
+async function borrarSesion() {
+  await guardarSecreto(LLAVE_TESTIGO, null);
+  await guardarSecreto(LLAVE_RENOVACION, null);
+  await AsyncStorage.multiRemove([LLAVE_PERFIL, LLAVE_ANTERIOR]);
+}
+
+/**
+ * Recupera la sesion guardada, trasladando antes la del formato anterior si
+ * existe. Devuelve null cuando no hay sesion.
+ */
+async function leerSesion() {
+  const anterior = await AsyncStorage.getItem(LLAVE_ANTERIOR);
+  if (anterior) {
+    try {
+      const datos = JSON.parse(anterior);
+      await guardarSesion(datos);
+    } finally {
+      await AsyncStorage.removeItem(LLAVE_ANTERIOR);
+    }
+  }
+
+  const testigo = await leerSecreto(LLAVE_TESTIGO);
+  if (!testigo) return null;
+
+  const testigoRenovacion = await leerSecreto(LLAVE_RENOVACION);
+  let usuario = null;
+  try {
+    usuario = JSON.parse((await AsyncStorage.getItem(LLAVE_PERFIL)) || 'null');
+  } catch (error) {
+    usuario = null;
+  }
+  return { testigo, testigoRenovacion, usuario };
+}
 
 const ContextoSesion = createContext(null);
 
@@ -61,9 +158,8 @@ export function ProveedorSesion({ children }) {
     }
 
     try {
-      const guardada = await AsyncStorage.getItem(LLAVE);
-      if (guardada) {
-        const datos = JSON.parse(guardada);
+      const datos = await leerSesion();
+      if (datos) {
         establecerTestigo(datos.testigo);
         try {
           const { usuario } = await api.perfil();
@@ -74,7 +170,7 @@ export function ProveedorSesion({ children }) {
           // falla de red no acreditan que la sesion perdio validez, y borrarla
           // obligaria al mecanico a escribir la contrasena sin motivo.
           if (error.estado === 401 || error.estado === 403) {
-            await AsyncStorage.removeItem(LLAVE);
+            await borrarSesion();
             establecerTestigo(null);
           } else {
             setSesion(datos);
@@ -98,7 +194,7 @@ export function ProveedorSesion({ children }) {
       usuario: datos.usuario,
     };
     establecerTestigo(nueva.testigo);
-    await AsyncStorage.setItem(LLAVE, JSON.stringify(nueva));
+    await guardarSesion(nueva);
     setSesion(nueva);
     return nueva;
   }
@@ -110,7 +206,7 @@ export function ProveedorSesion({ children }) {
       // El cierre local procede aunque el servidor no responda.
     }
     establecerTestigo(null);
-    await AsyncStorage.removeItem(LLAVE);
+    await borrarSesion();
     setSesion(null);
   }
 

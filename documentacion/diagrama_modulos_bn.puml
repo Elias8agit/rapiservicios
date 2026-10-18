@@ -1,0 +1,35 @@
+@startuml
+!include _estilo.puml
+skinparam rectangle {
+  BackgroundColor #F7F7F7
+  BorderColor Black
+  FontColor Black
+}
+top to bottom direction
+
+title Organización de los módulos del sistema Rapiservicios
+
+package "Base operativa" as G1 {
+  rectangle "M1\nAutenticación y\ncontrol de acceso" as M1
+  rectangle "M2\nRegistro de clientes\ny vehículos" as M2
+  rectangle "M3\nRecepción y captura\nde fallas" as M3
+}
+
+package "Diagnóstico" as G2 {
+  rectangle "M4\nInterpretación\ninteligente" as M4
+  rectangle "M5\nMotor de reglas\ny diagnóstico" as M5
+}
+
+package "Salida y seguimiento" as G3 {
+  rectangle "M6\nÓrdenes\nde trabajo" as M6
+  rectangle "M7\nHistorial\nvehicular" as M7
+  rectangle "M8\nConsulta\ndel cliente" as M8
+}
+M1 ..> M2
+M2 ..> M3
+M3 ..> M4
+M4 ..> M5
+M5 ..> M6
+M6 ..> M7
+M6 ..> M8
+@enduml

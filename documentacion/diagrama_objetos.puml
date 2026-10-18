@@ -1,0 +1,165 @@
+@startuml
+' ==========================================================================
+'  DIAGRAMA DE OBJETOS
+'  Sistema con inteligencia artificial para generar ordenes de trabajo y
+'  diagnostico en el taller mecanico Rapiservicios, Villa Nueva, Guatemala.
+'
+'  Walter Estuardo Elias Ochoa, carne 0900228982.
+'  Universidad Mariano Galvez de Guatemala.
+'
+'  POR QUE ESTA ORDEN Y NO UN EJEMPLO INVENTADO. El diagrama retrata el estado
+'  real de la base de datos para la orden RS7SDC29, generada dentro del taller
+'  el 18 de septiembre de 2026 sobre un Nissan Sentra de caja automatica. Los
+'  valores provienen de la base, no de un supuesto.
+'
+'  LO QUE DEMUESTRA. Las cinco tareas del detalle llevan origen REGLA, es decir
+'  que las decidio el motor de reglas del taller y no el servicio de
+'  interpretacion. Ninguna corresponde al embrague, porque la ficha del
+'  vehiculo declara caja automatica. El diagnostico conserva la categoria del
+'  catalogo junto con el origen MIXTO, que acredita la lectura conjunta del
+'  texto y de la fotografia.
+' ==========================================================================
+
+!theme plain
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam ArrowColor #15191E
+
+skinparam object {
+  BorderColor #5C6874
+  BackgroundColor #F4F6F8
+  FontColor #15191E
+  AttributeFontSize 11
+}
+
+object "pablo : Cliente" as CLI {
+  id_cliente = 2
+  nombre_completo = "Pablo Pelaes"
+  telefono = "45278963"
+}
+
+object "sentra : Vehiculo" as VEH #EEF1F4 {
+  id_vehiculo = 2
+  placa = "P567HFG"
+  marca = "Nissan"
+  linea = "Sentra"
+  modelo_anio = 2020
+  **tipo_transmision = "AUTOMATICA"**
+}
+
+object "propietario : Usuario" as USU {
+  id_usuario = 1
+  nombre_completo = "Propietario del taller"
+  rol = "PROPIETARIO"
+}
+
+object "recibido : EstadoOrden" as EST {
+  id_estado = 1
+  nombre_estado = "RECIBIDO"
+  orden_secuencia = 1
+}
+
+object "rs7sdc29 : OrdenTrabajo" as ORD #FFF4E3 {
+  id_orden = 9
+  codigo_consulta = "RS7SDC29"
+  descripcion_falla = "Cliente reporta sensación
+  de golpe al realizar cambios
+  de marcha, falla de caja..."
+  fecha_ingreso = 2026-09-18
+  tiempo_estimado_min = 140
+}
+
+object "transmision : CategoriaFalla" as CAT {
+  id_categoria = 7
+  nombre_categoria = "Transmision"
+  sistema_vehicular = "Transmision"
+}
+
+object "dx : Diagnostico" as DIA #EEF1F4 {
+  id_diagnostico = 9
+  origen_interpretacion = "MIXTO"
+  nivel_confianza = 0.950
+  hallazgo = "Desgaste y daño interno
+  en componentes de la caja
+  de transmision automatica"
+}
+
+object "t1 : DetalleOrden" as T1 {
+  origen = "REGLA"
+  id_tarea = 25
+  tarea = "Revision de nivel y estado
+  del aceite de transmision"
+  completada = false
+}
+
+object "t2 : DetalleOrden" as T2 {
+  origen = "REGLA"
+  id_tarea = 28
+  tarea = "Lectura de codigos del
+  modulo de transmision"
+  completada = false
+}
+
+object "t3 : DetalleOrden" as T3 {
+  origen = "REGLA"
+  id_tarea = 26
+  tarea = "Prueba de solenoides y
+  cuerpo de valvulas"
+  completada = false
+}
+
+object "t4 : DetalleOrden" as T4 {
+  origen = "REGLA"
+  id_tarea = 27
+  tarea = "Revision del convertidor
+  de par"
+  completada = false
+}
+
+object "t5 : DetalleOrden" as T5 {
+  origen = "REGLA"
+  id_tarea = 17
+  tarea = "Prueba de cambios
+  en carretera"
+  completada = false
+}
+
+object "foto : Fotografia" as FOT {
+  etapa = "INGRESO"
+  descripcion = "Componente reportado
+  por el mecanico"
+}
+
+object "asiento : BitacoraEstado" as BIT {
+  comentario = "Ingreso del vehiculo y
+  generacion del diagnostico
+  sugerido"
+}
+
+CLI "1" -- "*" VEH : posee
+VEH "1" -- "*" ORD : genera
+USU "1" -- "*" ORD : recepciona
+EST "1" -- "*" ORD : define
+
+ORD -- DIA : integra
+CAT "0..1" -- "*" DIA : clasifica
+
+ORD -- T1 : contiene
+ORD -- T2 : contiene
+ORD -- T3 : contiene
+ORD -- T4 : contiene
+ORD -- T5 : contiene
+
+ORD -- FOT : documenta
+ORD -- BIT : traza
+
+note bottom of T5
+  Las cinco tareas llevan origen REGLA:
+  las decidió el motor de reglas del taller.
+  Ninguna corresponde al embrague, porque
+  la ficha declara caja automática
+end note
+
+@enduml

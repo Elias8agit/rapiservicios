@@ -143,6 +143,21 @@ async function principal() {
 
   const perfil = await llamar('/autenticacion/perfil');
   informar('El perfil de la sesion responde con el testigo', perfil.estado === 200);
+
+  // Cambio de contrasena propia. Solo se prueban los rechazos: un cambio real
+  // dejaria la cuenta del propietario con otra contrasena si la prueba se
+  // interrumpiera a mitad de camino. El cambio completo se prueba a mano.
+  const actualEquivocada = await llamar('/autenticacion/contrasena', {
+    method: 'POST',
+    body: JSON.stringify({ actual: 'contrasenaEquivocada', nueva: 'OtraContrasena2026' }),
+  });
+  informar('Cambiar la contrasena exige la actual correcta', actualEquivocada.estado === 401);
+
+  const nuevaCorta = await llamar('/autenticacion/contrasena', {
+    method: 'POST',
+    body: JSON.stringify({ actual: contrasena, nueva: 'corta' }),
+  });
+  informar('Una contrasena nueva de menos de ocho caracteres se rechaza', nuevaCorta.estado === 400);
   console.log();
 
   // 4. Alta de cliente -----------------------------------------------------

@@ -108,6 +108,117 @@ function InformacionDispositivo() {
   );
 }
 
+/**
+ * Cambio de la contrasena propia (18 de octubre de 2026).
+ *
+ * Cualquier persona del taller cambia aqui la suya, de modo que la que le
+ * asigno el propietario deja de ser la vigente y solo ella la conoce. Pide la
+ * actual para que nadie con el telefono desbloqueado se quede con la cuenta,
+ * y la nueva dos veces porque se escribe a ciegas.
+ */
+function CambioContrasena() {
+  const { colores, estilos } = useTema();
+  const [abierto, setAbierto] = useState(false);
+  const [actual, setActual] = useState('');
+  const [nueva, setNueva] = useState('');
+  const [confirmacion, setConfirmacion] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState('');
+  const [exito, setExito] = useState('');
+
+  const corta = nueva.length > 0 && nueva.length < 8;
+  const distintas = confirmacion.length > 0 && confirmacion !== nueva;
+  const igualActual = nueva.length > 0 && nueva === actual;
+  const lista = actual.length > 0 && nueva.length >= 8 && confirmacion === nueva && !igualActual;
+
+  function cerrar() {
+    setAbierto(false);
+    setActual('');
+    setNueva('');
+    setConfirmacion('');
+    setError('');
+  }
+
+  async function cambiar() {
+    setError('');
+    setExito('');
+    setOcupado(true);
+    try {
+      await api.cambiarContrasena(actual, nueva);
+      cerrar();
+      setExito('La contrasena quedo cambiada. Si la cuenta estaba abierta en otro telefono, ahi se tendra que volver a entrar.');
+    } catch (falla) {
+      setError(falla.message);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <View style={estilos.tarjeta}>
+      <Texto style={estilos.tarjetaTitulo}>Contrasena</Texto>
+      <Aviso mensaje={exito} tipo="exito" />
+
+      {abierto ? (
+        <View>
+          <Campo
+            etiqueta="Contrasena actual"
+            value={actual}
+            onChangeText={setActual}
+            secreto
+            icono="lock-closed-outline"
+          />
+          <Campo
+            etiqueta="Contrasena nueva"
+            value={nueva}
+            onChangeText={setNueva}
+            secreto
+            icono="key-outline"
+            invalido={corta || igualActual}
+            ayuda={
+              corta
+                ? 'Requiere al menos ocho caracteres.'
+                : igualActual
+                  ? 'Debe ser distinta de la actual.'
+                  : 'Al menos ocho caracteres. Conviene que no sea la misma del correo.'
+            }
+          />
+          <Campo
+            etiqueta="Repetir la contrasena nueva"
+            value={confirmacion}
+            onChangeText={setConfirmacion}
+            secreto
+            icono="key-outline"
+            invalido={distintas}
+            ayuda={distintas ? 'No coincide con la contrasena nueva.' : null}
+          />
+          <Aviso mensaje={error} />
+          <Boton
+            titulo="Cambiar contrasena"
+            icono="checkmark"
+            alPresionar={cambiar}
+            ocupado={ocupado}
+            deshabilitado={!lista}
+          />
+          <Boton titulo="Cancelar" variante="secundario" alPresionar={cerrar} />
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => {
+            setExito('');
+            setAbierto(true);
+          }}
+          hitSlop={6}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: ESPACIO.sm }}
+        >
+          <Ionicons name="key-outline" size={15} color={colores.enlace} />
+          <Texto style={{ color: colores.enlace, fontSize: 13, fontWeight: '600' }}>Cambiar mi contrasena</Texto>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 export default function Cuenta() {
   const { colores, estilos, modo, cambiarModo } = useTema();
   const { usuario, esPropietario, salir } = useSesion();
@@ -246,6 +357,8 @@ export default function Cuenta() {
           </View>
         </View>
       </View>
+
+      <CambioContrasena />
 
       {esPropietario ? (
         <View style={estilos.tarjeta}>

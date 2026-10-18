@@ -1,0 +1,111 @@
+@startuml
+' ==========================================================================
+'  DIAGRAMA DE COMPONENTES
+'  Sistema con inteligencia artificial para generar ordenes de trabajo y
+'  diagnostico en el taller mecanico Rapiservicios, Villa Nueva, Guatemala.
+'
+'  Walter Estuardo Elias Ochoa, carne 0900228982.
+'  Universidad Mariano Galvez de Guatemala.
+'
+'  LO QUE EL DIAGRAMA DEMUESTRA. Las tres capas residen en alojamientos
+'  distintos y se comunican por interfaces declaradas. La aplicacion movil
+'  conversa unicamente con el servidor propio: nunca alcanza la base de datos
+'  ni el servicio de interpretacion. Las credenciales de ambos permanecen
+'  dentro del servidor.
+'
+'  Dentro del servidor, el modulo de interpretacion y el motor de reglas
+'  figuran separados a proposito: el primero traduce la entrada del mecanico,
+'  el segundo decide las tareas. Esa separacion es el planteamiento de la
+'  tesis expresado en la estructura del programa.
+' ==========================================================================
+
+!theme plain
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam ArrowColor #15191E
+skinparam componentStyle rectangle
+
+skinparam component {
+  BorderColor #5C6874
+  BackgroundColor #F4F6F8
+  FontColor #15191E
+}
+skinparam node {
+  BorderColor #15191E
+  BackgroundColor #FFFFFF
+  FontStyle bold
+}
+skinparam database {
+  BorderColor #5C6874
+  BackgroundColor #EEF1F4
+}
+skinparam interface {
+  BorderColor #15191E
+  BackgroundColor #FFFFFF
+}
+
+node "Teléfono del personal del taller" as TEL {
+  component "Aplicación móvil\nReact Native, Expo SDK 54" as APP {
+    component "Pantallas\n(once)" as PANT
+    component "Contexto de sesión" as SES
+    component "Capa de acceso REST\ncliente.js" as REST
+    component "Tema y componentes\ncomunes" as TEMA
+  }
+}
+
+node "Render\ncapa gratuita" as RENDER {
+  component "Servidor de aplicación\nNode.js 22 con Express" as SRV {
+    component "Rutas REST\nsiete enrutadores" as RUTAS
+    component "Intermediarios\nsesión, rol y límite\nde intentos" as MID
+    component "Interpretación\ninterpretacion.js\n//traduce, no decide//" as INT
+    component "Motor de reglas\nmotorReglas.js\n//decide las tareas//" as MOT
+    component "Catálogo del taller\ncatalogo.js" as CAT
+    component "Almacenamiento\nalmacenamiento.js" as ALM
+    component "Configuración\nde Supabase" as CFG
+  }
+}
+
+node "Supabase" as SUPA {
+  database "PostgreSQL\ncatorce tablas\ny una vista" as BD
+  component "Autenticación" as AUTH
+  component "Bucket privado\nfotografias-ordenes" as BUCKET
+}
+
+node "Google" as GOOG {
+  component "Gemini\ngemini-flash-lite-latest" as GEM
+}
+
+interface "HTTPS / REST" as IREST
+interface "supabase-js" as ISUPA
+interface "HTTPS\nx-goog-api-key" as IGEM
+
+PANT --> SES
+PANT --> TEMA
+SES --> REST
+REST -down-> IREST
+IREST -down-> RUTAS
+
+RUTAS --> MID
+RUTAS --> INT
+RUTAS --> MOT
+RUTAS --> ALM
+MOT --> CAT
+INT --> CAT
+RUTAS --> CFG
+ALM --> CFG
+CFG -down-> ISUPA
+ISUPA -down-> BD
+ISUPA -down-> AUTH
+ISUPA -down-> BUCKET
+
+INT -right-> IGEM
+IGEM -right-> GEM
+
+note bottom of IGEM
+  La placa del vehículo nunca
+  atraviesa esta interfaz
+end note
+
+@enduml

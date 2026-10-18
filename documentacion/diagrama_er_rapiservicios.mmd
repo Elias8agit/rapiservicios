@@ -30,6 +30,7 @@ erDiagram
         int modelo_anio
         varchar color
         int kilometraje
+        varchar tipo_transmision "opcional"
         timestamp fecha_registro
     }
     CATEGORIA_FALLA {
@@ -75,6 +76,9 @@ erDiagram
         timestamp fecha_entrega
         int tiempo_estimado_min
         text observaciones
+        int kilometraje_ingreso "opcional"
+        timestamp fecha_anulacion "opcional"
+        varchar motivo_anulacion "opcional"
     }
     DIAGNOSTICO {
         int id_diagnostico PK

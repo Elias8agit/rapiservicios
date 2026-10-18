@@ -1,0 +1,169 @@
+@startuml
+!include _estilo.puml
+skinparam linetype ortho
+hide circle
+top to bottom direction
+
+package "Dominio del taller" {
+  class Rol {
+    -int idRol
+    -String nombreRol
+  }
+
+  class Usuario {
+    -int idUsuario
+    -String nombreCompleto
+    -String correo
+    -Rol rol
+    -boolean activo
+    +autenticar() : boolean
+    +esPropietario() : boolean
+  }
+
+  class Cliente {
+    -int idCliente
+    -String nombreCompleto
+    -String telefono
+    +obtenerVehiculos() : List
+  }
+
+  class Vehiculo {
+    -int idVehiculo
+    -String placa
+    -String marca
+    -String linea
+    -int modeloAnio
+    -int kilometraje
+    -String tipoTransmision
+    +obtenerHistorial() : List
+  }
+
+  class OrdenTrabajo {
+    -int idOrden
+    -String codigoConsulta
+    -String descripcionFalla
+    -Date fechaIngreso
+    -EstadoOrden estado
+    -int tiempoEstimadoMin
+    +avanzarEstado(e) : void
+    +agregarFotografia(f) : void
+    +calcularAvance() : double
+  }
+
+  class EstadoOrden {
+    -int idEstado
+    -String nombreEstado
+    -int ordenSecuencia
+  }
+
+  class Fotografia {
+    -int idFotografia
+    -String rutaAlmacenamiento
+    -String etapa
+    +obtenerUrlFirmada() : String
+  }
+
+  class BitacoraEstado {
+    -int idBitacora
+    -Date fechaCambio
+    -String comentario
+  }
+}
+
+package "Base de conocimiento" {
+  class CategoriaFalla {
+    -int idCategoria
+    -String nombreCategoria
+    -String sistemaVehicular
+  }
+
+  class ReglaDiagnostico {
+    -int idRegla
+    -String condicion
+    -double nivelConfianza
+    -int prioridad
+    -boolean activa
+    +seCumple(entrada, tipoCaja) : boolean
+  }
+
+  class TareaRevision {
+    -int idTarea
+    -String nombreTarea
+    -int tiempoEstimadoMin
+  }
+}
+
+package "Diagnóstico" {
+  class Diagnostico {
+    -int idDiagnostico
+    -String origenInterpretacion
+    -double nivelConfianza
+    -String textoInterpretado
+    -String sistemaSugerido
+    -String hallazgo
+    -Date fechaGeneracion
+  }
+
+  class DetalleOrden {
+    -int idDetalle
+    -String origen
+    -String nombreTareaSugerida
+    -int tiempoSugeridoMin
+    -boolean completada
+    -int tiempoRealMin
+    +provieneDeRegla() : boolean
+  }
+}
+
+package "Servicios del sistema" {
+  class CapaInterpretacion <<servicio>> {
+    -String modelo
+    -double umbralConfianza
+    +clasificar(descripcion, fotografia) : Lectura
+    +complementar(entrada, tareasDelTaller) : List
+  }
+
+  class MotorReglas <<servicio>> {
+    -List reglasActivas
+    -double UMBRAL_CONFIANZA
+    +evaluar(entrada) : Diagnostico
+    +tipoDeCaja(entrada) : String
+    +estimarTiempo(tareas) : int
+  }
+}
+
+Rol "1" --o "muchos" Usuario
+Cliente "1" --o "muchos" Vehiculo
+Vehiculo "1" --o "muchos" OrdenTrabajo
+Usuario "1" --o "muchos" OrdenTrabajo
+EstadoOrden "1" --o "muchos" OrdenTrabajo
+OrdenTrabajo "1" --* "muchos" Fotografia
+OrdenTrabajo "1" --* "muchos" BitacoraEstado
+OrdenTrabajo "1" --* "muchos" Diagnostico
+OrdenTrabajo "1" --* "muchos" DetalleOrden
+CategoriaFalla "0..1" --o "muchos" Diagnostico
+TareaRevision "0..1" --o "muchos" DetalleOrden
+CategoriaFalla "1" --o "muchos" ReglaDiagnostico
+ReglaDiagnostico "muchos" --o "muchos" TareaRevision
+
+CapaInterpretacion ..> CategoriaFalla : propone
+MotorReglas ..> ReglaDiagnostico : aplica
+MotorReglas ..> Vehiculo : consulta el tipo de caja
+MotorReglas ..> DetalleOrden : produce con origen REGLA
+CapaInterpretacion ..> DetalleOrden : produce con origen GENERATIVO
+
+note right of DetalleOrden
+  El atributo origen admite los valores REGLA y
+  GENERATIVO. Una tarea con origen REGLA conserva la
+  referencia hacia TareaRevision. Una tarea con origen
+  GENERATIVO carece de esa referencia y guarda el
+  nombre y el tiempo que la interpretación propuso.
+end note
+
+note bottom of Diagnostico
+  La categoría resulta opcional. Ante una avería
+  fuera del catálogo el diagnóstico conserva el
+  sistema sugerido y el hallazgo en lugar de la
+  categoría.
+end note
+@enduml

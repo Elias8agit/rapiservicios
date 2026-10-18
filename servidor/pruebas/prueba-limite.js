@@ -40,8 +40,8 @@ function comprobar(afirmacion, condicion, detalle = '') {
  * @param {number} estadoFinal Estado con el que respondera la ruta.
  * @returns {{atendida:boolean, estado:number, cuerpo:object}}
  */
-function consultar(direccion, estadoFinal, { middleware = limitarConsulta, cuerpo = {} } = {}) {
-  const peticion = { ip: direccion, body: cuerpo };
+function consultar(direccion, estadoFinal, { middleware = limitarConsulta, cuerpo = {}, usuario } = {}) {
+  const peticion = { ip: direccion, body: cuerpo, usuario };
   const salida = { atendida: false, estado: 0, cuerpo: null };
   const oyentes = [];
 
@@ -233,6 +233,24 @@ for (let i = 0; i < MAXIMO_FALLOS + 1; i += 1) consultar('10.1.0.4', 404);
 comprobar(
   'Una direccion bloqueada en la consulta publica todavia puede iniciar sesion',
   ingresar('10.1.0.4', 'mecanico@gmail.com', 200).atendida
+);
+
+console.log('\n  Caso 12: en el cambio de contrasena cuenta contra la cuenta de la sesion.');
+reiniciarRegistro();
+let detenidoCambio = null;
+for (let i = 1; i <= MAXIMO_FALLOS_INGRESO + 1; i += 1) {
+  // Sin correo en el cuerpo y desde direcciones distintas: solo la llave de la
+  // cuenta, tomada del perfil de la sesion, puede frenarlo.
+  const r = consultar(`10.3.0.${i}`, 401, {
+    middleware: limitarIngreso,
+    usuario: { correo: 'mecanico@gmail.com' },
+  });
+  if (!r.atendida && detenidoCambio === null) detenidoCambio = i;
+}
+comprobar(
+  `La cuenta queda detenida al intento ${MAXIMO_FALLOS_INGRESO + 1} usando el correo de la sesion`,
+  detenidoCambio === MAXIMO_FALLOS_INGRESO + 1,
+  `se detuvo en ${detenidoCambio}`
 );
 
 // --------------------------------------------------------------------------

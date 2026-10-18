@@ -1,0 +1,20 @@
+{
+ "theme": "neutral",
+ "fontFamily": "Times New Roman, Liberation Serif, serif",
+ "themeVariables": {
+  "fontFamily": "Times New Roman, Liberation Serif, serif",
+  "primaryColor": "#F2F2F2",
+  "primaryBorderColor": "#000000",
+  "lineColor": "#000000",
+  "primaryTextColor": "#000000",
+  "background": "#FFFFFF",
+  "nodeBorder": "#000000",
+  "mainBkg": "#F2F2F2",
+  "attributeBackgroundColorOdd": "#FFFFFF",
+  "attributeBackgroundColorEven": "#F2F2F2",
+  "edgeLabelBackground": "#FFFFFF"
+ },
+ "er": {
+  "useMaxWidth": false
+ }
+}

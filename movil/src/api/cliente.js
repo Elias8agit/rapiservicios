@@ -220,6 +220,7 @@ export const api = {
   ingresar: (correo, contrasena) => enviar('/autenticacion/ingreso', { correo, contrasena }, AMPLIO),
   perfil: () => obtener('/autenticacion/perfil', AMPLIO),
   salir: () => enviar('/autenticacion/salida', {}),
+  cambiarContrasena: (actual, nueva) => enviar('/autenticacion/contrasena', { actual, nueva }),
   listarUsuarios: () => obtener('/usuarios'),
   crearUsuario: (datos) => enviar('/usuarios', datos),
   restablecerContrasena: (idUsuario, contrasena) =>

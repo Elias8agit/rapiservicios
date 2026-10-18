@@ -1,0 +1,55 @@
+@startuml
+!include _estilo.puml
+skinparam rectangle {
+  BackgroundColor #F7F7F7
+  BorderColor Black
+  FontColor Black
+}
+top to bottom direction
+
+package "CAPA DE PRESENTACIÓN" as P {
+  rectangle "Aplicación móvil\nReact Native con Expo\narchivo instalable" as A1
+  rectangle "Consulta del cliente\npor código de orden" as A2
+}
+
+package "CAPA DE SERVICIOS · Render" as S {
+  rectangle "Servidor de aplicación\nNode.js con Express\nveintiséis servicios REST" as B1
+  rectangle "Validación de sesión\ny límite de intentos" as B2
+}
+
+package "CAPA DE CONOCIMIENTO" as I {
+  rectangle "Capa de interpretación\nalias gemini-flash-lite-latest\nlee el texto y la fotografía" as C1
+  rectangle "Motor de reglas del taller\ndoce categorías, veintiocho\ntareas y quince reglas" as C2
+}
+
+package "CAPA DE DATOS · Supabase" as D {
+  rectangle "Base de datos PostgreSQL\ncatorce tablas y una vista" as E1
+  rectangle "Contenedor privado\nde fotografías" as E2
+  rectangle "Servicio de\nautenticación" as E3
+}
+
+A1 --> B1 : peticiones sobre HTTPS
+A2 --> B1 : consulta del estado
+B1 -right- B2
+
+B1 --> C1 : descripción y fotografía
+C1 --> B1
+B1 --> C2 : categoría y tipo de caja
+C2 --> B1
+
+B1 --> E1 : lectura y escritura
+B1 --> E2 : carga de archivos
+B2 --> E3
+C2 ..> E1 : consulta de reglas
+
+A1 -[hidden]down- B1
+B1 -[hidden]down- C1
+C1 -[hidden]down- E1
+
+note right of I
+  La capa de interpretación traduce el ingreso hacia una categoría
+  del catálogo, o describe el sistema afectado cuando ninguna
+  corresponde. El motor de reglas decide las tareas y el tiempo.
+  Ante contradicción entre ambos prevalece el conocimiento del taller.
+end note
+@enduml

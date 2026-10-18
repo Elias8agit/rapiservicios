@@ -1,0 +1,142 @@
+@startuml
+' ==========================================================================
+'  FIGURA - DIAGRAMA DE CASOS DE USO
+'  Sistema con inteligencia artificial para generar ordenes de trabajo y
+'  diagnostico en el taller mecanico Rapiservicios, Villa Nueva, Guatemala.
+'
+'  Walter Estuardo Elias Ochoa, carne 0900228982.
+'  Universidad Mariano Galvez de Guatemala.
+'
+'  ACTORES. El taller opera con tres personas: el propietario y dos
+'  mecanicos. El propietario ejecuta todo lo que ejecuta un mecanico y ademas
+'  administra al personal, de ahi la generalizacion entre ambos. El cliente no
+'  captura informacion: unicamente consulta el estado de su vehiculo mediante
+'  el codigo que recibe al momento del ingreso.
+'
+'  El servicio de interpretacion figura como actor secundario porque reside
+'  fuera del sistema y este lo consulta, nunca al reves.
+'
+'  ACTUALIZACION DEL 18 DE OCTUBRE DE 2026. Se agregan los casos de la
+'  edicion y anulacion de ordenes, la eliminacion de fotografias, la
+'  restriccion por rol (la entrega del vehiculo pasa al propietario), la
+'  desactivacion de personal y el cambio de la contrasena propia.
+' ==========================================================================
+
+!theme plain
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 13
+skinparam ArrowColor #15191E
+skinparam actorStyle awesome
+
+skinparam actor {
+  BorderColor #15191E
+  BackgroundColor #FFFFFF
+}
+skinparam usecase {
+  BorderColor #5C6874
+  BackgroundColor #F4F6F8
+  FontColor #15191E
+}
+skinparam package {
+  BorderColor #15191E
+  BackgroundColor #FFFFFF
+  FontStyle bold
+}
+
+left to right direction
+
+actor "Mecánico" as MEC
+actor "Propietario\ndel taller" as PROP
+actor "Cliente" as CLI
+actor "Servicio de\ninterpretación" as IA << externo >>
+
+PROP -up-|> MEC
+
+rectangle "Sistema Rapiservicios" {
+
+  package "M1  Acceso y personal" {
+    usecase "Iniciar sesión" as UC1
+    usecase "Registrar personal\ndel taller" as UC2
+    usecase "Restablecer contraseña\nde un mecánico" as UC3
+    usecase "Desactivar o reactivar\nel acceso del personal" as UC15
+    usecase "Cambiar la\ncontraseña propia" as UC16
+  }
+
+  package "M2  Clientes y vehículos" {
+    usecase "Registrar cliente" as UC4
+    usecase "Registrar vehículo" as UC5
+  }
+
+  package "M3, M4 y M5  Ingreso y diagnóstico" {
+    usecase "Ingresar vehículo\ny generar la orden" as UC6
+    usecase "Adjuntar evidencia\nfotográfica" as UC7
+    usecase "Generar el diagnóstico\nsugerido" as UC8
+    usecase "Interpretar la descripción\ny la fotografía" as UC9
+    usecase "Aplicar las reglas\ndel taller" as UC10
+  }
+
+  package "M6  Seguimiento" {
+    usecase "Marcar tareas\nde revisión" as UC11
+    usecase "Hacer avanzar\nel estado de la orden" as UC12
+    usecase "Corregir kilometraje\ny nota de la orden" as UC17
+    usecase "Eliminar evidencia\nfotográfica" as UC18
+    usecase "Registrar la entrega\ndel vehículo" as UC19
+    usecase "Anular la orden" as UC20
+  }
+
+  package "M7  Historial" {
+    usecase "Consultar el historial\ndel vehículo" as UC13
+  }
+
+  package "M8  Consulta pública" {
+    usecase "Consultar el estado\nde la orden" as UC14
+  }
+}
+
+MEC --> UC1
+MEC --> UC4
+MEC --> UC5
+MEC --> UC6
+MEC --> UC11
+MEC --> UC12
+MEC --> UC13
+MEC --> UC16
+MEC --> UC17
+MEC --> UC18
+
+PROP --> UC2
+PROP --> UC3
+PROP --> UC15
+PROP --> UC19
+PROP --> UC20
+
+CLI --> UC14
+
+UC9 --> IA
+
+' El diagnostico no se genera por separado: forma parte del ingreso.
+UC6 ..> UC8 : <<include>>
+
+' El diagnostico reune las dos capas. La interpretacion traduce la entrada;
+' las reglas del taller deciden las tareas y el tiempo.
+UC8 ..> UC9 : <<include>>
+UC8 ..> UC10 : <<include>>
+
+' La fotografia resulta opcional, pero cuando existe manda sobre el texto.
+UC7 ..> UC6 : <<extend>>
+
+' El alta de cliente y de vehiculo se resuelve sin abandonar la orden.
+UC4 ..> UC6 : <<extend>>
+UC5 ..> UC6 : <<extend>>
+
+' La entrega es el ultimo avance de estado, reservado al propietario.
+UC19 ..> UC12 : <<extend>>
+
+' Las restricciones de cada caso (el mecanico avanza hasta LISTO, la
+' fotografia analizada no se elimina, la anulacion exige motivo y procede
+' hasta LISTO) se explican en el texto del documento y no como notas: como
+' notas cruzaban el diagrama de lado a lado.
+
+@enduml

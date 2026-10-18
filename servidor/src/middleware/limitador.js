@@ -242,7 +242,10 @@ function anotarFalloIngreso(llave, instante) {
 function limitarIngreso(peticion, respuesta, siguiente) {
   const ahora = Date.now();
   const direccion = `ip:${peticion.ip || peticion.socket?.remoteAddress || 'desconocida'}`;
-  const correo = String(peticion.body?.correo || '').trim().toLowerCase();
+  // En el cambio de contrasena la persona ya inicio sesion y el correo viene
+  // de su perfil, no del cuerpo: asi un intento fallido cuenta contra su
+  // propia cuenta igual que en el inicio de sesion.
+  const correo = String(peticion.body?.correo || peticion.usuario?.correo || '').trim().toLowerCase();
   const cuenta = correo ? `cuenta:${correo}` : null;
 
   const esperas = [registroIngreso.get(direccion), cuenta && registroIngreso.get(cuenta)]
