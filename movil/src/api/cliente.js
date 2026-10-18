@@ -201,6 +201,7 @@ export async function despertarServidor(alAvanzar) {
 const enviar = (ruta, cuerpo, ajustes) => peticion(ruta, { method: 'POST', body: JSON.stringify(cuerpo) }, ajustes);
 const reemplazar = (ruta, cuerpo) => peticion(ruta, { method: 'PUT', body: JSON.stringify(cuerpo) });
 const modificar = (ruta, cuerpo) => peticion(ruta, { method: 'PATCH', body: JSON.stringify(cuerpo) });
+const borrar = (ruta) => peticion(ruta, { method: 'DELETE' });
 
 /** Ajuste para las operaciones que atraviesan la capa de interpretacion. */
 const AMPLIO = { limite: LIMITE_ESPERA_AMPLIO };
@@ -247,6 +248,7 @@ export const api = {
   // Solo kilometraje y observaciones. El servidor rechaza cualquier otro campo.
   editarOrden: (idOrden, datos) => modificar(`/ordenes/${idOrden}`, datos),
   anularOrden: (idOrden, motivo) => enviar(`/ordenes/${idOrden}/anulacion`, { motivo }),
+  eliminarFotografia: (idOrden, idFotografia) => borrar(`/ordenes/${idOrden}/fotografias/${idFotografia}`),
 
   // Modulo M4
   categorias: () => obtener('/diagnostico/categorias'),

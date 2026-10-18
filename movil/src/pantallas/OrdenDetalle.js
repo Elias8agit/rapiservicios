@@ -23,10 +23,15 @@
  * propietario anula, con motivo, y hasta la etapa LISTO. Una orden anulada se
  * sigue pudiendo abrir y leer completa, pero no admite ningun cambio: la
  * pantalla oculta los controles y el servidor los rechaza igual.
+ *
+ * ELIMINAR FOTOGRAFIAS (18 de octubre de 2026). Cada fotografia llega del
+ * servidor con dos marcas: analizada (la que leyo el asistente, protegida) y
+ * eliminable (si quien consulta puede quitarla). La pantalla solo muestra el
+ * control cuando el servidor lo va a aceptar; la regla vive alla.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Texto } from '../componentes/Texto';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,6 +112,7 @@ export default function OrdenDetalle({ route, navigation }) {
   const [avanzando, setAvanzando] = useState(false);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [tareaEnCurso, setTareaEnCurso] = useState(null);
+  const [fotoEnCurso, setFotoEnCurso] = useState(null);
   const [editando, setEditando] = useState(false);
   const [anulando, setAnulando] = useState(false);
   const { esPropietario } = useSesion();
@@ -158,6 +164,35 @@ export default function OrdenDetalle({ route, navigation }) {
       setError(falla);
     } finally {
       setAvanzando(false);
+    }
+  }
+
+  /**
+   * Pide confirmacion con el dialogo del sistema antes de eliminar. Quitar
+   * evidencia no se deshace, y el boton es pequeno: un toque accidental sobre
+   * la galeria no debe bastar.
+   */
+  function confirmarEliminacion(foto) {
+    Alert.alert(
+      'Eliminar fotografia',
+      `Se elimina la fotografia de la etapa ${foto.etapa}. La bitacora deja constancia de que existio y de quien la quito.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarFotografia(foto) },
+      ]
+    );
+  }
+
+  async function eliminarFotografia(foto) {
+    setFotoEnCurso(foto.id_fotografia);
+    setError(null);
+    try {
+      await api.eliminarFotografia(idOrden, foto.id_fotografia);
+      await consultar();
+    } catch (falla) {
+      setError(falla);
+    } finally {
+      setFotoEnCurso(null);
     }
   }
 
@@ -750,16 +785,67 @@ export default function OrdenDetalle({ route, navigation }) {
                     position: 'absolute',
                     left: 6,
                     bottom: 6,
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    borderRadius: RADIO.completo,
-                    backgroundColor: 'rgba(11, 15, 20, 0.72)',
+                    flexDirection: 'row',
+                    gap: 4,
                   }}
                 >
-                  <Texto style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 }}>
-                    {f.etapa}
-                  </Texto>
+                  <View
+                    style={{
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: RADIO.completo,
+                      backgroundColor: 'rgba(11, 15, 20, 0.72)',
+                    }}
+                  >
+                    <Texto style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 }}>
+                      {f.etapa}
+                    </Texto>
+                  </View>
+                  {/* La fotografia que leyo el asistente se distingue, y es la
+                      razon de que no lleve control para eliminarla. */}
+                  {f.analizada ? (
+                    <View
+                      style={{
+                        paddingHorizontal: 7,
+                        paddingVertical: 2,
+                        borderRadius: RADIO.completo,
+                        backgroundColor: colores.acento,
+                      }}
+                    >
+                      <Texto style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 0.4 }}>
+                        ANALIZADA
+                      </Texto>
+                    </View>
+                  ) : null}
                 </View>
+
+                {f.eliminable ? (
+                  <Pressable
+                    onPress={() => confirmarEliminacion(f)}
+                    disabled={fotoEnCurso !== null}
+                    hitSlop={8}
+                    style={({ pressed }) => [
+                      {
+                        position: 'absolute',
+                        top: 6,
+                        right: 6,
+                        width: 30,
+                        height: 30,
+                        borderRadius: RADIO.completo,
+                        backgroundColor: 'rgba(11, 15, 20, 0.72)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      },
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    {fotoEnCurso === f.id_fotografia ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
+                    )}
+                  </Pressable>
+                ) : null}
               </View>
             ))}
           </ScrollView>

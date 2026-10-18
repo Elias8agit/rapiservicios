@@ -24,6 +24,7 @@
  *   POST  /api/ordenes/:id/fotografias      Agrega evidencia en cualquier etapa
  *   PATCH /api/ordenes/:id                  Edita kilometraje y nota del mecanico
  *   POST  /api/ordenes/:id/anulacion        Anula la orden (solo propietario)
+ *   DELETE /api/ordenes/:id/fotografias/:idFotografia  Elimina una fotografia
  *
  * ORDENES ANULADAS (migracion 07, 18 de octubre de 2026). Una orden anulada
  * conserva todo su contenido pero queda congelada: las rutas que la modifican
@@ -36,7 +37,7 @@ const { clienteServicio } = require('../config/supabase');
 const { requiereSesion, requiereRol } = require('../middleware/autenticacion');
 const { clasificar, complementar } = require('../servicios/interpretacion');
 const { evaluar } = require('../servicios/motorReglas');
-const { subirFotografia, obtenerEnlace } = require('../servicios/almacenamiento');
+const { subirFotografia, obtenerEnlace, eliminarArchivo } = require('../servicios/almacenamiento');
 const { generarCodigoConsulta } = require('../utilidades/codigo');
 const {
   validarEdicion,
@@ -44,6 +45,10 @@ const {
   validarMotivo,
   puedeAnular,
   comentarioAnulacion,
+  fotografiaAnalizada,
+  puedeEliminarFotografia,
+  comentarioEliminacionFoto,
+  DESCRIPCION_FOTO_ANALIZADA,
   MENSAJE_ANULADA,
 } = require('../servicios/reglasOrden');
 
@@ -154,7 +159,7 @@ enrutador.get('/:id', async (peticion, respuesta) => {
       .eq('id_orden', idOrden)
       .order('id_detalle'),
     clienteServicio.from('fotografia')
-      .select('id_fotografia, ruta_almacenamiento, etapa, descripcion, fecha_captura')
+      .select('id_fotografia, id_usuario, ruta_almacenamiento, etapa, descripcion, fecha_captura')
       .eq('id_orden', idOrden)
       .order('fecha_captura'),
     clienteServicio.from('bitacora_estado')
@@ -163,10 +168,23 @@ enrutador.get('/:id', async (peticion, respuesta) => {
       .order('fecha_cambio'),
   ]);
 
+  // Cada fotografia viaja con dos marcas calculadas aqui y no en el
+  // telefono: si es la que leyo el asistente y si quien consulta puede
+  // eliminarla. Asi la aplicacion solo muestra el control cuando el servidor
+  // lo va a aceptar, y la regla vive en un solo lugar.
+  const idProtegida = fotografiaAnalizada(fotografias.data || [], orden.fecha_ingreso);
   const listaFotografias = await Promise.all(
     (fotografias.data || []).map(async (foto) => ({
       ...foto,
       enlace: await obtenerEnlace(foto.ruta_almacenamiento),
+      analizada: foto.id_fotografia === idProtegida,
+      eliminable: puedeEliminarFotografia({
+        fotografia: foto,
+        idProtegida,
+        usuario: peticion.usuario,
+        nombreEstado: orden.estado?.nombre_estado,
+        anulada: orden.fecha_anulacion !== null,
+      }).permitido,
     }))
   );
 
@@ -405,10 +423,7 @@ enrutador.post('/', async (peticion, respuesta) => {
           id_usuario: peticion.usuario.idUsuario,
           ruta_almacenamiento: ruta,
           etapa: 'INGRESO',
-          descripcion:
-            indice === 0
-              ? 'Componente reportado por el mecanico. Acompano a la interpretacion.'
-              : 'Evidencia adicional del ingreso.',
+          descripcion: indice === 0 ? DESCRIPCION_FOTO_ANALIZADA : 'Evidencia adicional del ingreso.',
         });
         fotografiasResguardadas += 1;
       } catch (errorFoto) {
@@ -555,6 +570,72 @@ enrutador.post('/:id/fotografias', async (peticion, respuesta) => {
   } catch (error) {
     return respuesta.status(400).json({ error: error.message });
   }
+});
+
+/**
+ * Eliminacion de una fotografia.
+ *
+ * Primero se borra la fila y despues el archivo: si el archivo no se logra
+ * retirar, queda huerfano en un deposito privado; al reves, la orden mostraria
+ * una imagen rota. La eliminacion deja asiento en la bitacora, de modo que se
+ * sabe que hubo una fotografia, de que etapa y quien la quito.
+ */
+enrutador.delete('/:id/fotografias/:idFotografia', async (peticion, respuesta) => {
+  const idOrden = Number(peticion.params.id);
+  const idFotografia = Number(peticion.params.idFotografia);
+
+  const situacion = await situacionDeOrden(idOrden);
+  if (!situacion) {
+    return respuesta.status(404).json({ error: 'La orden solicitada no existe.' });
+  }
+
+  const { data: fotografias, error: errorFotos } = await clienteServicio
+    .from('fotografia')
+    .select('id_fotografia, id_usuario, ruta_almacenamiento, etapa, descripcion, fecha_captura')
+    .eq('id_orden', idOrden);
+
+  if (errorFotos) {
+    return respuesta.status(500).json({ error: 'Ocurrio una falla al consultar las fotografias.', detalle: errorFotos.message });
+  }
+
+  const fotografia = (fotografias || []).find((f) => f.id_fotografia === idFotografia);
+  if (!fotografia) {
+    return respuesta.status(404).json({ error: 'La fotografia no corresponde a la orden.' });
+  }
+
+  const decision = puedeEliminarFotografia({
+    fotografia,
+    idProtegida: fotografiaAnalizada(fotografias, situacion.fecha_ingreso),
+    usuario: peticion.usuario,
+    nombreEstado: situacion.nombreEstado,
+    anulada: situacion.anulada,
+  });
+  if (!decision.permitido) {
+    // 403 cuando el impedimento es de la persona, 409 cuando es de la orden
+    // o de la fotografia.
+    return respuesta.status(decision.deUsuario ? 403 : 409).json({ error: decision.motivo });
+  }
+
+  const { error: errorBorrado } = await clienteServicio
+    .from('fotografia')
+    .delete()
+    .eq('id_fotografia', idFotografia)
+    .eq('id_orden', idOrden);
+
+  if (errorBorrado) {
+    return respuesta.status(400).json({ error: 'No se logro eliminar la fotografia.', detalle: errorBorrado.message });
+  }
+
+  const archivoRetirado = await eliminarArchivo(fotografia.ruta_almacenamiento);
+
+  await clienteServicio.from('bitacora_estado').insert({
+    id_orden: idOrden,
+    id_estado: situacion.id_estado,
+    id_usuario: peticion.usuario.idUsuario,
+    comentario: comentarioEliminacionFoto(fotografia),
+  });
+
+  return respuesta.json({ eliminada: idFotografia, archivoRetirado });
 });
 
 /**

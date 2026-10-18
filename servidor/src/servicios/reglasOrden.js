@@ -15,6 +15,14 @@
  *     la ruta con requiereRol), exige motivo y se admite hasta LISTO.
  *   - Una orden anulada queda congelada: no avanza de etapa, no marca tareas,
  *     no recibe fotografias ni ediciones.
+ *
+ * Eliminacion de fotografias, decidida el mismo 18 de octubre:
+ *
+ *   - La elimina quien la tomo o el propietario.
+ *   - La fotografia que leyo el asistente para el diagnostico queda
+ *     protegida: es el respaldo visible de ese diagnostico.
+ *   - Se admite hasta LISTO. En una orden ENTREGADA la evidencia ya es
+ *     historia del vehiculo, y una orden anulada esta congelada.
  */
 
 /** Etapas desde las que se admite anular. ENTREGADO queda fuera. */
@@ -172,6 +180,91 @@ function comentarioAnulacion(motivo) {
   return `Orden anulada. Motivo: ${motivo}`.slice(0, 200);
 }
 
+/**
+ * Descripcion con la que se guarda la fotografia que acompano a la
+ * interpretacion. La ruta de ordenes la usa al registrar el ingreso y esta
+ * funcion la usa para reconocerla. Cambiar el texto obliga a revisar
+ * fotografiaAnalizada, porque las ordenes viejas conservan el anterior.
+ */
+const DESCRIPCION_FOTO_ANALIZADA = 'Componente reportado por el mecanico. Acompano a la interpretacion.';
+const PREFIJO_FOTO_ANALIZADA = 'Componente reportado por el mecanico';
+
+/** Margen para reconocer una fotografia subida durante el registro del ingreso. */
+const MARGEN_INGRESO_MS = 3 * 60 * 1000;
+
+/**
+ * Identifica, entre las fotografias de una orden, la que leyo el asistente.
+ *
+ * Primero por su descripcion. Si ninguna la trae (ordenes registradas antes
+ * de que se guardara ese texto), se toma la primera fotografia de INGRESO
+ * subida dentro de los primeros minutos del registro de la orden: las que se
+ * agregan despues desde el detalle no participaron en el diagnostico y no
+ * deben quedar protegidas por error.
+ *
+ * @param {Array<object>} fotografias Filas con id_fotografia, etapa, descripcion y fecha_captura.
+ * @param {string} fechaIngreso Fecha de registro de la orden.
+ * @returns {number|null} Identificador de la fotografia protegida, o null.
+ */
+function fotografiaAnalizada(fotografias, fechaIngreso) {
+  const deIngreso = (fotografias || []).filter((f) => f.etapa === 'INGRESO');
+
+  const marcada = deIngreso.find((f) => String(f.descripcion || '').startsWith(PREFIJO_FOTO_ANALIZADA));
+  if (marcada) return marcada.id_fotografia;
+
+  const inicio = new Date(fechaIngreso).getTime();
+  if (Number.isNaN(inicio)) return null;
+
+  const delRegistro = deIngreso
+    .filter((f) => {
+      const captura = new Date(f.fecha_captura).getTime();
+      return !Number.isNaN(captura) && captura - inicio >= 0 && captura - inicio <= MARGEN_INGRESO_MS;
+    })
+    .sort((a, b) => a.id_fotografia - b.id_fotografia);
+
+  return delRegistro.length ? delRegistro[0].id_fotografia : null;
+}
+
+/**
+ * Decide si un usuario puede eliminar una fotografia de una orden.
+ *
+ * @param {{ fotografia: object, idProtegida: number|null,
+ *           usuario: { idUsuario: number, rol: string },
+ *           nombreEstado: string, anulada: boolean }} datos
+ * @returns {{ permitido: boolean, motivo: string|null, deUsuario: boolean }}
+ *          deUsuario indica que el impedimento es de la persona (403) y no de
+ *          la orden o de la fotografia (409).
+ */
+function puedeEliminarFotografia({ fotografia, idProtegida, usuario, nombreEstado, anulada }) {
+  if (anulada) {
+    return { permitido: false, motivo: MENSAJE_ANULADA, deUsuario: false };
+  }
+  if (nombreEstado === 'ENTREGADO') {
+    return {
+      permitido: false,
+      motivo: 'La orden ya fue ENTREGADA: su evidencia fotografica se conserva como historia del vehiculo.',
+      deUsuario: false,
+    };
+  }
+  if (fotografia.id_fotografia === idProtegida) {
+    return {
+      permitido: false,
+      motivo: 'Es la fotografia que leyo el asistente para el diagnostico y se conserva como su respaldo.',
+      deUsuario: false,
+    };
+  }
+  const esPropietario = usuario?.rol === 'PROPIETARIO';
+  const esAutor = usuario?.idUsuario !== undefined && fotografia.id_usuario === usuario.idUsuario;
+  if (!esPropietario && !esAutor) {
+    return { permitido: false, motivo: 'Solo quien tomo la fotografia o el propietario pueden eliminarla.', deUsuario: true };
+  }
+  return { permitido: true, motivo: null, deUsuario: false };
+}
+
+/** Texto del asiento de bitacora que deja la eliminacion de una fotografia. */
+function comentarioEliminacionFoto(fotografia) {
+  return `Fotografia eliminada (etapa ${fotografia.etapa}).`;
+}
+
 /** Mensaje uniforme cuando se intenta operar sobre una orden anulada. */
 const MENSAJE_ANULADA =
   'La orden se encuentra anulada y no admite cambios. Su contenido se conserva como constancia.';
@@ -183,9 +276,13 @@ module.exports = {
   NOTA_MAXIMA,
   KILOMETRAJE_MAXIMO,
   MENSAJE_ANULADA,
+  DESCRIPCION_FOTO_ANALIZADA,
   validarEdicion,
   resumirEdicion,
   validarMotivo,
   puedeAnular,
   comentarioAnulacion,
+  fotografiaAnalizada,
+  puedeEliminarFotografia,
+  comentarioEliminacionFoto,
 };

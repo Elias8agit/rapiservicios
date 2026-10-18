@@ -3,7 +3,8 @@
  *
  * Verifica las decisiones de servicios/reglasOrden.js sin red ni base de
  * datos: que campos se admiten al editar, como se valida cada uno, que deja
- * escrito la bitacora, y en que etapas se puede anular.
+ * escrito la bitacora, en que etapas se puede anular, y desde el 18 de
+ * octubre de 2026 quien puede eliminar cada fotografia.
  *
  * Lo que esta suite NO cubre, porque necesita servidor y base: el bloqueo con
  * 409 de las rutas sobre una orden anulada, el filtro ANULADAS del listado y
@@ -21,6 +22,9 @@ const {
   puedeAnular,
   comentarioAnulacion,
   ETAPAS_ANULABLES,
+  fotografiaAnalizada,
+  puedeEliminarFotografia,
+  DESCRIPCION_FOTO_ANALIZADA,
 } = require('../src/servicios/reglasOrden');
 
 const LINEA = '='.repeat(78);
@@ -171,6 +175,72 @@ for (const etapa of ETAPAS_ANULABLES) {
 informar('No se anula una orden ENTREGADO', !puedeAnular({ nombreEstado: 'ENTREGADO', anulada: false }).permitido);
 informar('No se anula dos veces la misma orden', !puedeAnular({ nombreEstado: 'RECIBIDO', anulada: true }).permitido);
 informar('Una etapa desconocida no se anula', !puedeAnular({ nombreEstado: 'INVENTADA', anulada: false }).permitido);
+console.log();
+
+// 6. Eliminacion de fotografias ------------------------------------------
+console.log('6. ELIMINACION DE FOTOGRAFIAS');
+{
+  const ingreso = '2026-10-18T21:42:39.381882';
+  const fotos = [
+    { id_fotografia: 10, id_usuario: 2, etapa: 'INGRESO', descripcion: DESCRIPCION_FOTO_ANALIZADA, fecha_captura: '2026-10-18T21:42:45' },
+    { id_fotografia: 11, id_usuario: 2, etapa: 'INGRESO', descripcion: 'Evidencia adicional del ingreso.', fecha_captura: '2026-10-18T21:42:46' },
+    { id_fotografia: 12, id_usuario: 3, etapa: 'DIAGNOSTICO', descripcion: null, fecha_captura: '2026-10-18T23:00:00' },
+  ];
+  const protegida = fotografiaAnalizada(fotos, ingreso);
+  informar('Se reconoce por su descripcion la fotografia que leyo el asistente', protegida === 10, String(protegida));
+
+  const viejas = [
+    { id_fotografia: 20, id_usuario: 2, etapa: 'INGRESO', descripcion: 'Texto de otra version', fecha_captura: '2026-08-28T10:00:20' },
+    { id_fotografia: 21, id_usuario: 2, etapa: 'INGRESO', descripcion: null, fecha_captura: '2026-08-28T15:00:00' },
+  ];
+  informar(
+    'En una orden vieja se protege la primera foto subida durante el registro',
+    fotografiaAnalizada(viejas, '2026-08-28T10:00:05') === 20
+  );
+
+  const sinFotoEnRegistro = [
+    { id_fotografia: 30, id_usuario: 2, etapa: 'INGRESO', descripcion: null, fecha_captura: '2026-09-01T12:00:00' },
+  ];
+  informar(
+    'Una foto de INGRESO agregada horas despues no queda protegida',
+    fotografiaAnalizada(sinFotoEnRegistro, '2026-09-01T08:00:00') === null
+  );
+  informar('Sin fotografias no hay ninguna protegida', fotografiaAnalizada([], ingreso) === null);
+
+  const mecanico = { idUsuario: 2, rol: 'MECANICO' };
+  const otroMecanico = { idUsuario: 3, rol: 'MECANICO' };
+  const propietario = { idUsuario: 1, rol: 'PROPIETARIO' };
+  const base = { idProtegida: 10, nombreEstado: 'EN DIAGNOSTICO', anulada: false };
+
+  informar(
+    'Quien tomo la fotografia puede eliminarla',
+    puedeEliminarFotografia({ ...base, fotografia: fotos[1], usuario: mecanico }).permitido
+  );
+  {
+    const r = puedeEliminarFotografia({ ...base, fotografia: fotos[1], usuario: otroMecanico });
+    informar('Otro mecanico no puede eliminarla, y el rechazo es de permiso', !r.permitido && r.deUsuario === true);
+  }
+  informar(
+    'El propietario puede eliminar la fotografia de otro',
+    puedeEliminarFotografia({ ...base, fotografia: fotos[2], usuario: propietario }).permitido
+  );
+  {
+    const r = puedeEliminarFotografia({ ...base, fotografia: fotos[0], usuario: propietario });
+    informar('Ni el propietario elimina la fotografia que leyo el asistente', !r.permitido && r.deUsuario === false);
+  }
+  informar(
+    'No se elimina en una orden ENTREGADA',
+    !puedeEliminarFotografia({ ...base, nombreEstado: 'ENTREGADO', fotografia: fotos[1], usuario: mecanico }).permitido
+  );
+  informar(
+    'Si se elimina en una orden LISTO',
+    puedeEliminarFotografia({ ...base, nombreEstado: 'LISTO', fotografia: fotos[1], usuario: mecanico }).permitido
+  );
+  informar(
+    'No se elimina en una orden anulada',
+    !puedeEliminarFotografia({ ...base, anulada: true, fotografia: fotos[1], usuario: propietario }).permitido
+  );
+}
 
 // Resumen ------------------------------------------------------------------
 console.log();

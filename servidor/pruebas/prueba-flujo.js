@@ -51,6 +51,13 @@ async function llamar(ruta, opciones = {}, conTestigo = true) {
   return { estado: respuesta.status, cuerpo };
 }
 
+/**
+ * Imagen JPEG de 8 por 8 pixeles, roja. Basta para recorrer la subida y la
+ * eliminacion de fotografias sin cargar archivos desde el disco.
+ */
+const JPEG_DE_PRUEBA =
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDCooorzj7E/9k=';
+
 /** Genera una placa que no colisione con los registros existentes. */
 function placaDePrueba() {
   const digitos = String(Math.floor(Math.random() * 900) + 100);
@@ -333,10 +340,10 @@ async function principal() {
   informar('Un codigo inexistente devuelve no encontrado', codigoInexistente.estado === 404);
   console.log();
 
-  // 11. Edicion y anulacion (migracion 07) ---------------------------------
+  // 11. Edicion, fotografias y anulacion (migracion 07) --------------------
   // Va al final porque anula la orden del recorrido: despues de esto la orden
   // queda congelada y ninguna seccion anterior podria operar sobre ella.
-  console.log('11. EDICION Y ANULACION DE LA ORDEN');
+  console.log('11. EDICION, FOTOGRAFIAS Y ANULACION DE LA ORDEN');
   const bitacoraAntes = (await llamar(`/ordenes/${idOrden}`)).cuerpo.bitacora?.length || 0;
 
   const edicion = await llamar(`/ordenes/${idOrden}`, {
@@ -376,6 +383,52 @@ async function principal() {
   });
   informar('El servicio rechaza un kilometraje negativo', kmInvalido.estado === 400);
 
+  // Fotografias: se suben dos en la etapa DIAGNOSTICO, se elimina una y la
+  // otra queda para comprobar despues que una orden anulada no la suelta.
+  const subirPrueba = () =>
+    llamar(`/ordenes/${idOrden}/fotografias`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fotografia: { datos: JPEG_DE_PRUEBA, tipoMime: 'image/jpeg' },
+        etapa: 'DIAGNOSTICO',
+        descripcion: 'Prueba funcional automatizada.',
+      }),
+    });
+  const fotoUno = await subirPrueba();
+  const fotoDos = await subirPrueba();
+  informar(
+    'Se suben dos fotografias de prueba',
+    fotoUno.estado === 201 && fotoDos.estado === 201,
+    `Estados ${fotoUno.estado} y ${fotoDos.estado}: ${fotoUno.cuerpo.error || fotoDos.cuerpo.error || ''}`
+  );
+  const idFotoUno = fotoUno.cuerpo.fotografia?.id_fotografia;
+  const idFotoDos = fotoDos.cuerpo.fotografia?.id_fotografia;
+
+  const conFotos = await llamar(`/ordenes/${idOrden}`);
+  const marcaUno = (conFotos.cuerpo.fotografias || []).find((f) => f.id_fotografia === idFotoUno);
+  informar(
+    'El detalle marca como eliminable la fotografia que subio la misma persona',
+    marcaUno?.eliminable === true && marcaUno?.analizada === false
+  );
+
+  const bitacoraAntesFoto = conFotos.cuerpo.bitacora?.length || 0;
+  const borrado = await llamar(`/ordenes/${idOrden}/fotografias/${idFotoUno}`, { method: 'DELETE' });
+  informar(
+    'Una fotografia se elimina y su archivo sale del almacenamiento',
+    borrado.estado === 200 && borrado.cuerpo.archivoRetirado === true,
+    borrado.estado === 200 ? '' : `Estado ${borrado.estado}: ${borrado.cuerpo.error || ''} ${borrado.cuerpo.detalle || ''}`
+  );
+
+  const trasBorrado = await llamar(`/ordenes/${idOrden}`);
+  informar(
+    'La fotografia ya no aparece y la bitacora registra la eliminacion',
+    !(trasBorrado.cuerpo.fotografias || []).some((f) => f.id_fotografia === idFotoUno) &&
+      (trasBorrado.cuerpo.bitacora?.length || 0) === bitacoraAntesFoto + 1
+  );
+
+  const borradoAjeno = await llamar(`/ordenes/${idOrden}/fotografias/999999999`, { method: 'DELETE' });
+  informar('Eliminar una fotografia que no es de la orden devuelve no encontrado', borradoAjeno.estado === 404);
+
   const sinMotivo = await llamar(`/ordenes/${idOrden}/anulacion`, {
     method: 'POST',
     body: JSON.stringify({ motivo: '' }),
@@ -410,6 +463,11 @@ async function principal() {
       body: JSON.stringify({ completada: false }),
     });
     informar('Una orden anulada no admite marcar tareas', tareaAnulada.estado === 409);
+  }
+
+  if (idFotoDos) {
+    const fotoAnulada = await llamar(`/ordenes/${idOrden}/fotografias/${idFotoDos}`, { method: 'DELETE' });
+    informar('Una orden anulada no permite eliminar sus fotografias', fotoAnulada.estado === 409);
   }
 
   const edicionAnulada = await llamar(`/ordenes/${idOrden}`, {

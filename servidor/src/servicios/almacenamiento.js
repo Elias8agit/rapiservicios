@@ -61,6 +61,9 @@ async function subirFotografia(fotografia, idOrden, etapa = 'INGRESO') {
 
 /**
  * Devuelve un enlace temporal de lectura para una fotografia resguardada.
+ *
+ * El deposito es privado y el enlace caduca a la hora: quien lo copie fuera de
+ * la aplicacion no conserva acceso a la imagen.
  * @param {string} ruta Ruta dentro del almacenamiento.
  * @param {number} segundos Vigencia del enlace.
  */
@@ -73,4 +76,25 @@ async function obtenerEnlace(ruta, segundos = 3600) {
   return data?.signedUrl || null;
 }
 
-module.exports = { subirFotografia, obtenerEnlace, ETAPAS };
+/**
+ * Retira el archivo de una fotografia del almacenamiento.
+ *
+ * Devuelve true o false en lugar de lanzar: quien la llama ya borro la fila de
+ * la base, y un archivo que no se logro retirar queda huerfano dentro de un
+ * deposito privado, sin enlace desde la aplicacion. Es preferible a lo
+ * contrario, una fila que apunta a un archivo inexistente y muestra una
+ * imagen rota.
+ *
+ * @param {string} ruta Ruta dentro del almacenamiento.
+ * @returns {Promise<boolean>}
+ */
+async function eliminarArchivo(ruta) {
+  const { error } = await clienteServicio.storage.from(BUCKET_FOTOGRAFIAS).remove([ruta]);
+  if (error) {
+    console.warn(`Archivo sin retirar del almacenamiento (${ruta}): ${error.message}`);
+    return false;
+  }
+  return true;
+}
+
+module.exports = { subirFotografia, obtenerEnlace, eliminarArchivo, ETAPAS };
