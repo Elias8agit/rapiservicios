@@ -8,12 +8,14 @@
     "iniciar": "node src/index.js",
     "desarrollo": "node --watch src/index.js",
     "prueba": "node pruebas/prueba-diagnostico.js",
+    "prueba:todas": "node pruebas/prueba-todas.js",
     "prueba:conexion": "node pruebas/prueba-conexion.js",
     "prueba:flujo": "node pruebas/prueba-flujo.js",
     "prueba:gemini": "node pruebas/prueba-gemini.js",
     "prueba:niveles": "node pruebas/prueba-niveles.js",
     "prueba:limite": "node pruebas/prueba-limite.js",
     "prueba:transmision": "node pruebas/prueba-transmision.js",
+    "prueba:anulacion": "node pruebas/prueba-anulacion.js",
     "prueba:modelos": "node pruebas/prueba-modelos.js"
   },
   "engines": {

@@ -273,6 +273,43 @@ export function EstadoVacio({ icono = 'file-tray-outline', titulo, detalle, acci
   );
 }
 
+/**
+ * Color e icono que corresponden a cada etapa del ciclo de la orden.
+ *
+ * Reside aqui porque lo usan el listado de ordenes, el historial del vehiculo y
+ * el detalle de la orden. Hasta el 9 de octubre de 2026 cada pantalla llevaba
+ * su propia copia; tres copias de la misma tabla terminan divergiendo, y una
+ * etapa pintada de un color en el listado y de otro en el detalle confunde.
+ *
+ * El rojo queda para EN REPARACION porque es la etapa que ocupa al taller; el
+ * verde para LISTO porque es la que el cliente espera.
+ */
+export function marcaDeEstado(nombre, colores) {
+  const mapa = {
+    RECIBIDO: { color: colores.textoSuave, icono: 'download-outline' },
+    'EN DIAGNOSTICO': { color: colores.aviso, icono: 'search-outline' },
+    'EN REPARACION': { color: colores.acento, icono: 'construct-outline' },
+    LISTO: { color: colores.exito, icono: 'checkmark-done-outline' },
+    ENTREGADO: { color: colores.plata, icono: 'car-outline' },
+    // No es una etapa del ciclo sino una marca aparte (migracion 07). Se
+    // pinta con el color de alerta porque es trabajo que ya no se hara.
+    ANULADA: { color: colores.alerta, icono: 'close-circle-outline' },
+  };
+  return mapa[nombre] || { color: colores.textoSuave, icono: 'ellipse-outline' };
+}
+
+/**
+ * Nombre de la etapa tal como debe mostrarse.
+ *
+ * Una orden anulada conserva en la base la etapa en que estaba, pero en
+ * pantalla se presenta como ANULADA: lo que importa al mirarla es que ya no
+ * es trabajo activo.
+ */
+export function etapaVisible(orden) {
+  if (orden?.fecha_anulacion || orden?.anulada) return 'ANULADA';
+  return orden?.estado?.nombre_estado || orden?.nombre_estado || null;
+}
+
 /** Distintivo de estado. */
 export function Distintivo({ texto, color = null }) {
   const { colores, estilos } = useTema();

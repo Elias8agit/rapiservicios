@@ -17,21 +17,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
-import { AvisoConReintento, Cargando, EstadoVacio } from '../componentes/Comunes';
+import { AvisoConReintento, Cargando, EstadoVacio, etapaVisible, marcaDeEstado } from '../componentes/Comunes';
 import { ESPACIO, RADIO, useTema } from '../tema';
 import { ESTADOS_ORDEN } from '../../configuracion';
 
-/** Color e icono que corresponden a cada etapa del ciclo de la orden. */
-function marcaDeEstado(nombre, colores) {
-  const mapa = {
-    RECIBIDO: { color: colores.textoSuave, icono: 'download-outline' },
-    'EN DIAGNOSTICO': { color: colores.aviso, icono: 'search-outline' },
-    'EN REPARACION': { color: colores.acento, icono: 'construct-outline' },
-    LISTO: { color: colores.exito, icono: 'checkmark-done-outline' },
-    ENTREGADO: { color: colores.plata, icono: 'car-outline' },
-  };
-  return mapa[nombre] || { color: colores.textoSuave, icono: 'ellipse-outline' };
-}
+/**
+ * Filtros de la tira superior. ANULADAS va al final y aparte de las etapas:
+ * el servidor excluye las anuladas de TODAS y de cada etapa, y solo las
+ * devuelve con este filtro.
+ */
+const FILTROS = ['', ...ESTADOS_ORDEN, 'ANULADAS'];
 
 export default function Ordenes({ navigation }) {
   const { colores, estilos, sombra } = useTema();
@@ -136,9 +131,9 @@ export default function Ordenes({ navigation }) {
           alignItems: 'center',
         }}
       >
-        {['', ...ESTADOS_ORDEN].map((estado) => {
+        {FILTROS.map((estado) => {
           const activo = filtro === estado;
-          const marca = estado ? marcaDeEstado(estado, colores) : null;
+          const marca = estado ? marcaDeEstado(estado === 'ANULADAS' ? 'ANULADA' : estado, colores) : null;
           return (
             <Pressable
               key={estado || 'todas'}
@@ -210,18 +205,27 @@ export default function Ordenes({ navigation }) {
               />
             ) : (
               <EstadoVacio
-                icono="clipboard-outline"
-                titulo={filtro ? `Sin ordenes en ${filtro}` : 'Todavia no hay ordenes'}
+                icono={filtro === 'ANULADAS' ? 'close-circle-outline' : 'clipboard-outline'}
+                titulo={
+                  filtro === 'ANULADAS'
+                    ? 'Ninguna orden anulada'
+                    : filtro
+                      ? `Sin ordenes en ${filtro}`
+                      : 'Todavia no hay ordenes'
+                }
                 detalle={
-                  filtro
-                    ? 'Ninguna orden se encuentra en esta etapa. Probar con el filtro TODAS.'
-                    : 'Al ingresar un vehiculo, la orden aparece aqui con su codigo de consulta.'
+                  filtro === 'ANULADAS'
+                    ? 'Las ordenes que anule el propietario aparecen aqui, con todo su contenido.'
+                    : filtro
+                      ? 'Ninguna orden se encuentra en esta etapa. Probar con el filtro TODAS.'
+                      : 'Al ingresar un vehiculo, la orden aparece aqui con su codigo de consulta.'
                 }
               />
             )
           }
           renderItem={({ item }) => {
-            const marca = marcaDeEstado(item.estado?.nombre_estado, colores);
+            const etapa = etapaVisible(item);
+            const marca = marcaDeEstado(etapa, colores);
             return (
               <Pressable
                 style={({ pressed }) => [estilos.tarjeta, pressed && { opacity: 0.75 }]}
@@ -247,7 +251,7 @@ export default function Ordenes({ navigation }) {
                         {item.codigo_consulta}
                       </Texto>
                       <Texto style={{ fontSize: 11, fontWeight: '700', color: marca.color, letterSpacing: 0.4 }}>
-                        {item.estado?.nombre_estado}
+                        {etapa}
                       </Texto>
                     </View>
                   </View>

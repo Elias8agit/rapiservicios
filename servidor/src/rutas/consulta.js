@@ -9,6 +9,12 @@
  * el detalle interno del diagnostico, conforme al alcance definido para este
  * actor dentro del Capitulo IV.
  *
+ * ORDEN ANULADA (decision del 18 de octubre de 2026). Si el taller anulo la
+ * orden, el cliente recibe una respuesta normal que lo dice, y no el mensaje
+ * de codigo inexistente: asi no cree que anoto mal el codigo. El motivo de la
+ * anulacion es interno y no se le muestra. La respuesta es 200 a proposito,
+ * de modo que el limite de intentos no la cuenta como un codigo fallido.
+ *
  * Ruta
  *   GET /api/consulta/:codigo
  */
@@ -31,7 +37,7 @@ enrutador.get('/:codigo', async (peticion, respuesta) => {
     const { data: orden, error } = await clienteServicio
       .from('orden_trabajo')
       .select(
-        'id_orden, codigo_consulta, descripcion_falla, fecha_ingreso, fecha_entrega, tiempo_estimado_min, ' +
+        'id_orden, codigo_consulta, descripcion_falla, fecha_ingreso, fecha_entrega, tiempo_estimado_min, fecha_anulacion, ' +
         'estado:estado_orden(nombre_estado, orden_secuencia), ' +
         'vehiculo:vehiculo(placa, marca, linea, modelo_anio)'
       )
@@ -43,6 +49,20 @@ enrutador.get('/:codigo', async (peticion, respuesta) => {
     }
     if (!orden) {
       return respuesta.status(404).json({ error: 'El codigo no corresponde a ninguna orden de trabajo.' });
+    }
+
+    if (orden.fecha_anulacion) {
+      return respuesta.json({
+        codigo: orden.codigo_consulta,
+        vehiculo: `${orden.vehiculo.marca} ${orden.vehiculo.linea} ${orden.vehiculo.modelo_anio}`,
+        placa: orden.vehiculo.placa,
+        anulada: true,
+        estado: 'ANULADA',
+        fechaIngreso: orden.fecha_ingreso,
+        fechaAnulacion: orden.fecha_anulacion,
+        mensaje:
+          'El taller anulo esta orden de trabajo. Para cualquier consulta, comunicarse con Rapiservicios.',
+      });
     }
 
     // Una tarea procede del catalogo del taller o de una sugerencia de la capa
@@ -60,6 +80,7 @@ enrutador.get('/:codigo', async (peticion, respuesta) => {
       codigo: orden.codigo_consulta,
       vehiculo: `${orden.vehiculo.marca} ${orden.vehiculo.linea} ${orden.vehiculo.modelo_anio}`,
       placa: orden.vehiculo.placa,
+      anulada: false,
       estado: orden.estado.nombre_estado,
       etapa: `${orden.estado.orden_secuencia} de 5`,
       fechaIngreso: orden.fecha_ingreso,

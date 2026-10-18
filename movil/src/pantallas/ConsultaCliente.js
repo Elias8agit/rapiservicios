@@ -59,7 +59,24 @@ export default function ConsultaCliente() {
 
         <Boton titulo="Consultar" alPresionar={consultar} ocupado={ocupado} />
 
-        {resultado ? (
+        {/* Orden anulada por el taller. Se dice de forma expresa para que el
+            cliente no crea que escribio mal el codigo; el motivo es interno y
+            el servidor no lo envia. */}
+        {resultado?.anulada ? (
+          <View style={{ marginTop: ESPACIO.lg }}>
+            <View style={estilos.tarjeta}>
+              <Texto style={estilos.tarjetaTitulo}>{resultado.vehiculo}</Texto>
+              <Texto style={estilos.tarjetaDetalle}>Placa {resultado.placa}</Texto>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: ESPACIO.sm, marginTop: ESPACIO.md }}>
+                <Ionicons name="close-circle" size={22} color={colores.alerta} />
+                <Texto style={{ fontSize: 20, fontWeight: '700', color: colores.alerta }}>Orden anulada</Texto>
+              </View>
+              <Texto style={[estilos.tarjetaDetalle, { marginTop: ESPACIO.sm, lineHeight: 19 }]}>
+                {resultado.mensaje}
+              </Texto>
+            </View>
+          </View>
+        ) : resultado ? (
           <View style={{ marginTop: ESPACIO.lg }}>
             <View style={estilos.tarjeta}>
               <Texto style={estilos.tarjetaTitulo}>{resultado.vehiculo}</Texto>

@@ -244,6 +244,9 @@ export const api = {
   marcarTarea: (idOrden, idDetalle, completada) => modificar(`/ordenes/${idOrden}/tareas/${idDetalle}`, { completada }),
   agregarFotografia: (idOrden, fotografia, etapa, descripcion) =>
     enviar(`/ordenes/${idOrden}/fotografias`, { fotografia, etapa, descripcion }, AMPLIO),
+  // Solo kilometraje y observaciones. El servidor rechaza cualquier otro campo.
+  editarOrden: (idOrden, datos) => modificar(`/ordenes/${idOrden}`, datos),
+  anularOrden: (idOrden, motivo) => enviar(`/ordenes/${idOrden}/anulacion`, { motivo }),
 
   // Modulo M4
   categorias: () => obtener('/diagnostico/categorias'),

@@ -65,6 +65,27 @@ app.use(express.json({ limit: '12mb' }));
  * El servicio devuelve estado 200 cuando la base responde y 503 cuando no, de
  * modo que un supervisor externo distinga ambas condiciones sin leer el cuerpo.
  */
+/**
+ * VERIFICACION DE VIDA DEL PROCESO.
+ *
+ * Es la ruta que consulta Render antes de mandar trafico a la instancia. No
+ * toca la base de datos, y eso es intencional.
+ *
+ * Hasta el 10 de octubre de 2026 Render consultaba /api/salud, que si consulta
+ * la base y devuelve 503 cuando Supabase no contesta. Ese dia Supabase estaba
+ * pausado por inactividad: el proceso arranco bien, pero Render lo tomo por
+ * enfermo y nunca le dejo pasar peticiones. La aplicacion quedo en "Encendiendo
+ * el servidor" de forma indefinida, y la pantalla preparada para avisar que la
+ * base no responde nunca pudo aparecer, porque la peticion no llegaba.
+ *
+ * Son dos preguntas distintas. Render necesita saber si el proceso vive; la
+ * aplicacion necesita saber si el servicio completo funciona. Esta ruta
+ * responde la primera y /api/salud la segunda.
+ */
+app.get('/api/vivo', (peticion, respuesta) => {
+  respuesta.json({ vivo: true, fecha: new Date().toISOString() });
+});
+
 app.get('/api/salud', async (peticion, respuesta) => {
   const informe = {
     servicio: 'Rapiservicios API',

@@ -5,7 +5,9 @@
  * inicio de sesion, alta de cliente, alta de vehiculo, generacion de la orden
  * de trabajo con diagnostico sugerido, avance de estado y consulta publica del
  * cliente. Verifica ademas que los servicios protegidos rechazan las peticiones
- * sin testigo de acceso.
+ * sin testigo de acceso. Desde el 18 de octubre de 2026 cierra editando y
+ * anulando la orden que genero, de modo que el recorrido no deja trabajo
+ * activo falso dentro del listado del taller.
  *
  * Requisitos: el servidor debe permanecer en ejecucion (npm run iniciar).
  *
@@ -317,6 +319,113 @@ async function principal() {
 
   const codigoInexistente = await llamar('/consulta/RSZZZZZZ', {}, false);
   informar('Un codigo inexistente devuelve no encontrado', codigoInexistente.estado === 404);
+  console.log();
+
+  // 11. Edicion y anulacion (migracion 07) ---------------------------------
+  // Va al final porque anula la orden del recorrido: despues de esto la orden
+  // queda congelada y ninguna seccion anterior podria operar sobre ella.
+  console.log('11. EDICION Y ANULACION DE LA ORDEN');
+  const bitacoraAntes = (await llamar(`/ordenes/${idOrden}`)).cuerpo.bitacora?.length || 0;
+
+  const edicion = await llamar(`/ordenes/${idOrden}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ kilometraje: 86500, observaciones: 'Prueba funcional: el cliente pide aviso por telefono.' }),
+  });
+  informar(
+    'La orden admite corregir el kilometraje y la nota del mecanico',
+    edicion.estado === 200 && edicion.cuerpo.orden?.kilometraje_ingreso === 86500,
+    edicion.estado === 200 ? '' : `Estado ${edicion.estado}: ${edicion.cuerpo.error || ''} ${edicion.cuerpo.detalle || ''}`
+  );
+
+  const trasEdicion = await llamar(`/ordenes/${idOrden}`);
+  informar(
+    'La edicion dejo un asiento en la bitacora',
+    (trasEdicion.cuerpo.bitacora?.length || 0) === bitacoraAntes + 1
+  );
+
+  const edicionRepetida = await llamar(`/ordenes/${idOrden}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ kilometraje: 86500 }),
+  });
+  informar(
+    'Guardar el mismo valor no agrega otro asiento',
+    edicionRepetida.estado === 200 && edicionRepetida.cuerpo.sinCambios === true
+  );
+
+  const edicionProhibida = await llamar(`/ordenes/${idOrden}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ descripcionFalla: 'Otra falla distinta' }),
+  });
+  informar('El servicio rechaza editar la descripcion de la falla', edicionProhibida.estado === 400);
+
+  const kmInvalido = await llamar(`/ordenes/${idOrden}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ kilometraje: -5 }),
+  });
+  informar('El servicio rechaza un kilometraje negativo', kmInvalido.estado === 400);
+
+  const sinMotivo = await llamar(`/ordenes/${idOrden}/anulacion`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo: '' }),
+  });
+  informar('La anulacion sin motivo se rechaza', sinMotivo.estado === 400);
+
+  const anulacion = await llamar(`/ordenes/${idOrden}/anulacion`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo: 'Prueba funcional automatizada.' }),
+  });
+  informar(
+    'El propietario anula la orden con motivo',
+    anulacion.estado === 200 && Boolean(anulacion.cuerpo.orden?.fecha_anulacion),
+    anulacion.estado === 200 ? '' : `Estado ${anulacion.estado}: ${anulacion.cuerpo.error || ''} ${anulacion.cuerpo.detalle || ''}`
+  );
+
+  const segundaAnulacion = await llamar(`/ordenes/${idOrden}/anulacion`, {
+    method: 'POST',
+    body: JSON.stringify({ motivo: 'Segundo intento de prueba.' }),
+  });
+  informar('Una orden ya anulada no se anula dos veces', segundaAnulacion.estado === 409);
+
+  const avanceAnulada = await llamar(`/ordenes/${idOrden}/estado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ nombreEstado: 'EN REPARACION' }),
+  });
+  informar('Una orden anulada no avanza de etapa', avanceAnulada.estado === 409);
+
+  if (primeraTarea) {
+    const tareaAnulada = await llamar(`/ordenes/${idOrden}/tareas/${primeraTarea.id_detalle}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ completada: false }),
+    });
+    informar('Una orden anulada no admite marcar tareas', tareaAnulada.estado === 409);
+  }
+
+  const edicionAnulada = await llamar(`/ordenes/${idOrden}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ kilometraje: 87000 }),
+  });
+  informar('Una orden anulada no admite ediciones', edicionAnulada.estado === 409);
+
+  const activas = await llamar('/ordenes');
+  informar(
+    'La orden anulada sale del listado de trabajo activo',
+    activas.estado === 200 && !(activas.cuerpo.ordenes || []).some((o) => o.id_orden === idOrden)
+  );
+
+  const anuladas = await llamar('/ordenes?estado=ANULADAS');
+  informar(
+    'La orden anulada aparece en el filtro ANULADAS',
+    anuladas.estado === 200 && (anuladas.cuerpo.ordenes || []).some((o) => o.id_orden === idOrden)
+  );
+
+  const consultaAnulada = await llamar(`/consulta/${codigoConsulta}`, {}, false);
+  informar(
+    'El cliente ve que la orden fue anulada, sin el motivo interno',
+    consultaAnulada.estado === 200 &&
+      consultaAnulada.cuerpo.anulada === true &&
+      !JSON.stringify(consultaAnulada.cuerpo).includes('Prueba funcional automatizada'),
+    `Estado ${consultaAnulada.estado}: ${JSON.stringify(consultaAnulada.cuerpo).slice(0, 160)}`
+  );
 
   // Resumen ----------------------------------------------------------------
   console.log();

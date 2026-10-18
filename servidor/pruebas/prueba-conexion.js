@@ -11,6 +11,33 @@
 require('dotenv').config();
 
 const { clienteServicio, configurado, BUCKET_FOTOGRAFIAS } = require('../src/config/supabase');
+const { CATEGORIAS, TAREAS, REGLAS } = require('../src/datos/catalogo');
+
+/**
+ * Cantidad de filas que cada catalogo debe tener dentro de la base.
+ *
+ * Los cuatro catalogos de la base de conocimiento derivan del catalogo en
+ * memoria y no de una cifra escrita a mano. El 29 de septiembre de 2026 esta
+ * prueba informo tres fallas que no correspondian a ningun defecto: los
+ * numeros seguian siendo los anteriores a la migracion 06, que agrego cuatro
+ * tareas de caja automatica y partio la regla de transmision en tres. La
+ * prueba quedaba vieja cada vez que el catalogo crecia.
+ *
+ * Con los valores derivados, la comprobacion pasa a significar lo que de
+ * verdad importa: que la base contenga exactamente lo que el servidor tiene
+ * cargado. Una migracion aplicada a medias sigue delatandose.
+ *
+ * El rol y el estado de la orden conservan su cifra fija porque no residen
+ * dentro del catalogo en memoria.
+ */
+const FILAS_ESPERADAS = {
+  rol: 2,
+  estado_orden: 5,
+  categoria_falla: CATEGORIAS.length,
+  tarea_revision: TAREAS.length,
+  regla_diagnostico: REGLAS.length,
+  regla_tarea: REGLAS.reduce((total, regla) => total + regla.tareas.length, 0),
+};
 
 const LINEA = '='.repeat(78);
 let correctas = 0;
@@ -63,17 +90,13 @@ async function principal() {
 
   // 2. Catalogos de la base de conocimiento -------------------------------
   console.log('2. CATALOGOS DE LA BASE DE CONOCIMIENTO');
-  await verificarTabla('rol', 2);
-  await verificarTabla('estado_orden', 5);
-  await verificarTabla('categoria_falla', 12);
-  await verificarTabla('tarea_revision', 24);
-  await verificarTabla('regla_diagnostico', 13);
-  await verificarTabla('regla_tarea', 36);
+  for (const [tabla, esperadas] of Object.entries(FILAS_ESPERADAS)) {
+    await verificarTabla(tabla, esperadas);
+  }
   console.log();
 
   // 3. Correspondencia entre el catalogo en memoria y la base de datos ----
   console.log('3. CORRESPONDENCIA DE IDENTIFICADORES');
-  const { CATEGORIAS, TAREAS } = require('../src/datos/catalogo');
 
   const { data: categoriasBd } = await clienteServicio
     .from('categoria_falla')

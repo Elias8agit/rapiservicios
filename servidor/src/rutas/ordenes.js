@@ -22,15 +22,30 @@
  *   PATCH /api/ordenes/:id/estado           Avance del estado de la orden
  *   PATCH /api/ordenes/:id/tareas/:idTarea  Marca una tarea como completada
  *   POST  /api/ordenes/:id/fotografias      Agrega evidencia en cualquier etapa
+ *   PATCH /api/ordenes/:id                  Edita kilometraje y nota del mecanico
+ *   POST  /api/ordenes/:id/anulacion        Anula la orden (solo propietario)
+ *
+ * ORDENES ANULADAS (migracion 07, 18 de octubre de 2026). Una orden anulada
+ * conserva todo su contenido pero queda congelada: las rutas que la modifican
+ * responden 409. El listado la excluye salvo que se pida el filtro ANULADAS.
+ * Las reglas de que se edita y cuando se anula viven en servicios/reglasOrden.js.
  */
 
 const express = require('express');
 const { clienteServicio } = require('../config/supabase');
-const { requiereSesion } = require('../middleware/autenticacion');
+const { requiereSesion, requiereRol } = require('../middleware/autenticacion');
 const { clasificar, complementar } = require('../servicios/interpretacion');
 const { evaluar } = require('../servicios/motorReglas');
 const { subirFotografia, obtenerEnlace } = require('../servicios/almacenamiento');
 const { generarCodigoConsulta } = require('../utilidades/codigo');
+const {
+  validarEdicion,
+  resumirEdicion,
+  validarMotivo,
+  puedeAnular,
+  comentarioAnulacion,
+  MENSAJE_ANULADA,
+} = require('../servicios/reglasOrden');
 
 const enrutador = express.Router();
 
@@ -38,7 +53,7 @@ enrutador.use(requiereSesion);
 
 const CAMPOS_ORDEN =
   'id_orden, codigo_consulta, descripcion_falla, fecha_ingreso, fecha_entrega, ' +
-  'tiempo_estimado_min, observaciones, ' +
+  'tiempo_estimado_min, observaciones, kilometraje_ingreso, fecha_anulacion, motivo_anulacion, ' +
   'estado:estado_orden(id_estado, nombre_estado, orden_secuencia), ' +
   'vehiculo:vehiculo(id_vehiculo, placa, marca, linea, modelo_anio, cliente:cliente(id_cliente, nombre_completo, telefono)), ' +
   'usuario:usuario(id_usuario, nombre_completo)';
@@ -51,6 +66,24 @@ async function idDeEstado(nombreEstado) {
     .eq('nombre_estado', nombreEstado)
     .maybeSingle();
   return data?.id_estado || null;
+}
+
+/**
+ * Recupera lo minimo de una orden para decidir si admite cambios.
+ * Devuelve null si la orden no existe.
+ */
+async function situacionDeOrden(idOrden) {
+  const { data } = await clienteServicio
+    .from('orden_trabajo')
+    .select(
+      'id_orden, id_vehiculo, id_estado, fecha_ingreso, kilometraje_ingreso, observaciones, fecha_anulacion, ' +
+        'estado:estado_orden(nombre_estado)'
+    )
+    .eq('id_orden', idOrden)
+    .maybeSingle();
+
+  if (!data) return null;
+  return { ...data, anulada: data.fecha_anulacion !== null, nombreEstado: data.estado?.nombre_estado || null };
 }
 
 /** Reserva un codigo de consulta que no exista dentro de la tabla. */
@@ -67,9 +100,16 @@ async function reservarCodigo(intentos = 6) {
   throw new Error('No se logro generar un codigo de consulta disponible.');
 }
 
-/** Listado de ordenes con filtro opcional por estado. */
+/**
+ * Listado de ordenes con filtro opcional por estado.
+ *
+ * Por omision devuelve solo el trabajo activo: las ordenes anuladas quedan
+ * fuera de TODAS y de cada etapa, porque ya no son trabajo del taller. El
+ * filtro especial ANULADAS devuelve unicamente esas.
+ */
 enrutador.get('/', async (peticion, respuesta) => {
   const { estado, idVehiculo } = peticion.query;
+  const soloAnuladas = estado === 'ANULADAS';
 
   let consulta = clienteServicio
     .from('orden_trabajo')
@@ -77,13 +117,14 @@ enrutador.get('/', async (peticion, respuesta) => {
     .order('fecha_ingreso', { ascending: false });
 
   if (idVehiculo) consulta = consulta.eq('id_vehiculo', Number(idVehiculo));
+  consulta = soloAnuladas ? consulta.not('fecha_anulacion', 'is', null) : consulta.is('fecha_anulacion', null);
 
   const { data, error } = await consulta;
   if (error) {
     return respuesta.status(500).json({ error: 'Ocurrio una falla al consultar las ordenes.', detalle: error.message });
   }
 
-  const ordenes = estado ? data.filter((o) => o.estado?.nombre_estado === estado) : data;
+  const ordenes = estado && !soloAnuladas ? data.filter((o) => o.estado?.nombre_estado === estado) : data;
   return respuesta.json({ total: ordenes.length, ordenes });
 });
 
@@ -185,6 +226,11 @@ enrutador.post('/', async (peticion, respuesta) => {
     }
 
     const kilometrajeUsado = Number(kilometraje ?? vehiculo.kilometraje ?? 0);
+    const kilometrajeDeclarado =
+      kilometraje !== undefined && kilometraje !== null && kilometraje !== '' ? Number(kilometraje) : null;
+    const kilometrajeIngreso = Number.isInteger(kilometrajeDeclarado) && kilometrajeDeclarado >= 0
+      ? kilometrajeDeclarado
+      : vehiculo.kilometraje ?? null;
 
     // Capa de interpretacion. La placa del vehiculo permanece dentro de la
     // base de datos del taller y nunca viaja hacia el servicio externo.
@@ -276,6 +322,9 @@ enrutador.post('/', async (peticion, respuesta) => {
         descripcion_falla: String(descripcionFalla).trim(),
         tiempo_estimado_min: tiempoEstimadoOrden,
         observaciones,
+        // Kilometraje de esta visita. El de la ficha del vehiculo se
+        // sobrescribe en cada ingreso; este queda con la orden.
+        kilometraje_ingreso: kilometrajeIngreso,
       })
       .select('id_orden, codigo_consulta, fecha_ingreso, tiempo_estimado_min')
       .single();
@@ -398,6 +447,14 @@ enrutador.patch('/:id/estado', async (peticion, respuesta) => {
     return respuesta.status(400).json({ error: 'El estado destino resulta obligatorio.' });
   }
 
+  const situacion = await situacionDeOrden(idOrden);
+  if (!situacion) {
+    return respuesta.status(404).json({ error: 'La orden solicitada no existe.' });
+  }
+  if (situacion.anulada) {
+    return respuesta.status(409).json({ error: MENSAJE_ANULADA });
+  }
+
   const idEstado = await idDeEstado(nombreEstado);
   if (!idEstado) {
     return respuesta.status(400).json({ error: `El estado ${nombreEstado} no existe dentro del catalogo.` });
@@ -438,6 +495,11 @@ enrutador.patch('/:id/tareas/:idDetalle', async (peticion, respuesta) => {
     return respuesta.status(400).json({ error: 'El campo completada requiere un valor logico.' });
   }
 
+  const situacion = await situacionDeOrden(Number(peticion.params.id));
+  if (situacion?.anulada) {
+    return respuesta.status(409).json({ error: MENSAJE_ANULADA });
+  }
+
   const { data, error } = await clienteServicio
     .from('detalle_orden')
     .update({ completada, tiempo_real_min: tiempoRealMin, observacion })
@@ -464,14 +526,12 @@ enrutador.post('/:id/fotografias', async (peticion, respuesta) => {
     return respuesta.status(400).json({ error: 'La fotografia resulta obligatoria.' });
   }
 
-  const { data: orden } = await clienteServicio
-    .from('orden_trabajo')
-    .select('id_orden')
-    .eq('id_orden', idOrden)
-    .maybeSingle();
-
-  if (!orden) {
+  const situacion = await situacionDeOrden(idOrden);
+  if (!situacion) {
     return respuesta.status(404).json({ error: 'La orden solicitada no existe.' });
+  }
+  if (situacion.anulada) {
+    return respuesta.status(409).json({ error: MENSAJE_ANULADA });
   }
 
   try {
@@ -495,6 +555,132 @@ enrutador.post('/:id/fotografias', async (peticion, respuesta) => {
   } catch (error) {
     return respuesta.status(400).json({ error: error.message });
   }
+});
+
+/**
+ * Edicion de una orden ya creada: kilometraje de ingreso y nota del mecanico.
+ *
+ * Cualquier usuario del taller puede editar, en cualquier etapa, mientras la
+ * orden no este anulada. Cada edicion que cambia algo deja un asiento en la
+ * bitacora con la etapa en que estaba la orden, de modo que la correccion
+ * queda trazada y no reemplaza al dato anterior sin dejar rastro.
+ */
+enrutador.patch('/:id', async (peticion, respuesta) => {
+  const idOrden = Number(peticion.params.id);
+  const { errores, cambios } = validarEdicion(peticion.body);
+  if (errores.length) {
+    return respuesta.status(400).json({ error: errores.join(' ') });
+  }
+
+  const situacion = await situacionDeOrden(idOrden);
+  if (!situacion) {
+    return respuesta.status(404).json({ error: 'La orden solicitada no existe.' });
+  }
+  if (situacion.anulada) {
+    return respuesta.status(409).json({ error: MENSAJE_ANULADA });
+  }
+
+  const resumen = resumirEdicion(situacion, cambios);
+  if (!resumen) {
+    // Nada distinto de lo guardado: se responde como exito sin escribir.
+    return respuesta.json({ orden: situacion, sinCambios: true });
+  }
+
+  const { data, error } = await clienteServicio
+    .from('orden_trabajo')
+    .update(cambios)
+    .eq('id_orden', idOrden)
+    .is('fecha_anulacion', null)
+    .select('id_orden, kilometraje_ingreso, observaciones')
+    .maybeSingle();
+
+  if (error) {
+    return respuesta.status(400).json({ error: 'No se logro guardar la edicion.', detalle: error.message });
+  }
+  if (!data) {
+    // La orden se anulo entre la consulta y la escritura.
+    return respuesta.status(409).json({ error: MENSAJE_ANULADA });
+  }
+
+  await clienteServicio.from('bitacora_estado').insert({
+    id_orden: idOrden,
+    id_estado: situacion.id_estado,
+    id_usuario: peticion.usuario.idUsuario,
+    comentario: resumen,
+  });
+
+  // La ficha del vehiculo refleja el kilometraje mas reciente conocido. Solo
+  // se actualiza si esta es la ultima visita vigente del vehiculo: corregir
+  // una orden vieja no debe pisar un dato mas nuevo.
+  if ('kilometraje_ingreso' in cambios && cambios.kilometraje_ingreso !== null) {
+    const { data: ultima } = await clienteServicio
+      .from('orden_trabajo')
+      .select('id_orden')
+      .eq('id_vehiculo', situacion.id_vehiculo)
+      .is('fecha_anulacion', null)
+      .order('fecha_ingreso', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (ultima?.id_orden === idOrden) {
+      await clienteServicio
+        .from('vehiculo')
+        .update({ kilometraje: cambios.kilometraje_ingreso })
+        .eq('id_vehiculo', situacion.id_vehiculo);
+    }
+  }
+
+  return respuesta.json({ orden: data, comentario: resumen });
+});
+
+/**
+ * Anulacion de la orden. Solo el propietario.
+ *
+ * Nada se borra: diagnostico, tareas, fotografias y bitacora se conservan. La
+ * orden sale del listado activo y queda congelada. La actualizacion lleva la
+ * condicion de que la orden siga vigente, de modo que dos anulaciones
+ * simultaneas no escriben dos veces.
+ */
+enrutador.post('/:id/anulacion', requiereRol('PROPIETARIO'), async (peticion, respuesta) => {
+  const idOrden = Number(peticion.params.id);
+  const { error: errorMotivo, motivo } = validarMotivo(peticion.body?.motivo);
+  if (errorMotivo) {
+    return respuesta.status(400).json({ error: errorMotivo });
+  }
+
+  const situacion = await situacionDeOrden(idOrden);
+  if (!situacion) {
+    return respuesta.status(404).json({ error: 'La orden solicitada no existe.' });
+  }
+
+  const decision = puedeAnular(situacion);
+  if (!decision.permitido) {
+    return respuesta.status(409).json({ error: decision.motivo });
+  }
+
+  const { data, error } = await clienteServicio
+    .from('orden_trabajo')
+    .update({ fecha_anulacion: new Date().toISOString(), motivo_anulacion: motivo })
+    .eq('id_orden', idOrden)
+    .is('fecha_anulacion', null)
+    .select('id_orden, codigo_consulta, fecha_anulacion, motivo_anulacion')
+    .maybeSingle();
+
+  if (error) {
+    return respuesta.status(400).json({ error: 'No se logro anular la orden.', detalle: error.message });
+  }
+  if (!data) {
+    return respuesta.status(409).json({ error: 'La orden ya se encuentra anulada.' });
+  }
+
+  await clienteServicio.from('bitacora_estado').insert({
+    id_orden: idOrden,
+    id_estado: situacion.id_estado,
+    id_usuario: peticion.usuario.idUsuario,
+    comentario: comentarioAnulacion(motivo),
+  });
+
+  return respuesta.json({ orden: data });
 });
 
 module.exports = enrutador;

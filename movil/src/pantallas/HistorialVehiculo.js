@@ -25,20 +25,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { api } from '../api/cliente';
-import { AvisoConReintento, Cargando, Distintivo, EstadoVacio } from '../componentes/Comunes';
+import { AvisoConReintento, Cargando, Distintivo, EstadoVacio, etapaVisible, marcaDeEstado } from '../componentes/Comunes';
 import { ESPACIO, RADIO, useTema } from '../tema';
-
-/** Color e icono de cada etapa, en correspondencia con el listado de ordenes. */
-function marcaDeEstado(nombre, colores) {
-  const mapa = {
-    RECIBIDO: { color: colores.textoSuave, icono: 'download-outline' },
-    'EN DIAGNOSTICO': { color: colores.aviso, icono: 'search-outline' },
-    'EN REPARACION': { color: colores.acento, icono: 'construct-outline' },
-    LISTO: { color: colores.exito, icono: 'checkmark-done-outline' },
-    ENTREGADO: { color: colores.plata, icono: 'car-outline' },
-  };
-  return mapa[nombre] || { color: colores.textoSuave, icono: 'ellipse-outline' };
-}
 
 /** Fecha en formato corto del pais, sin la hora. */
 function fechaCorta(valor) {
@@ -273,7 +261,11 @@ export default function HistorialVehiculo({ route, navigation }) {
           )
         }
         renderItem={({ item }) => {
-          const marca = marcaDeEstado(item.nombre_estado, colores);
+          // La vista entrega la marca anulada desde la migracion 07. Una
+          // visita anulada sigue en el historial: tambien dice algo del
+          // vehiculo.
+          const etapa = etapaVisible(item);
+          const marca = marcaDeEstado(etapa, colores);
           const total = Number(item.total_tareas) || 0;
           const hechas = Number(item.tareas_completadas) || 0;
           const fotos = Number(item.total_fotografias) || 0;
@@ -304,7 +296,7 @@ export default function HistorialVehiculo({ route, navigation }) {
                       {item.codigo_consulta || `Orden ${item.id_orden}`}
                     </Texto>
                     <Texto style={{ fontSize: 11, fontWeight: '700', color: marca.color, letterSpacing: 0.4 }}>
-                      {item.nombre_estado}
+                      {etapa}
                     </Texto>
                   </View>
                 </View>
