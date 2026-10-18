@@ -1,0 +1,65 @@
+# ==========================================================================
+#  PRUEBAS AUTOMATICAS EN CADA ENVIO AL REPOSITORIO
+#  Sistema de ordenes de trabajo y diagnostico - Taller Rapiservicios
+#
+#  Corre las suites que no necesitan red, base de datos ni claves: limite de
+#  intentos, tipo de caja, y edicion y anulacion de ordenes. Ademas comprueba
+#  que todos los archivos del servidor analizan, de modo que un error de
+#  sintaxis se detecta aqui y no cuando Render ya intento desplegarlo.
+#
+#  Las demas suites (conexion, niveles, comparativo, flujo) quedan fuera a
+#  proposito: necesitan las claves de Supabase y de Gemini, que no se guardan
+#  en GitHub, y algunas escriben datos reales o gastan cuota del servicio.
+#  Esas se siguen corriendo a mano con npm run prueba:todas.
+#
+#  No hace falta npm install: las tres suites solo cargan modulos propios.
+# ==========================================================================
+
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'servidor/**'
+      - '.github/workflows/pruebas.yml'
+  pull_request:
+    paths:
+      - 'servidor/**'
+  workflow_dispatch:
+
+jobs:
+  pruebas-sin-red:
+    name: Suites sin red
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: servidor
+
+    steps:
+      - name: Obtener el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sintaxis de todos los archivos del servidor
+        run: |
+          fallas=0
+          for archivo in $(find src pruebas -name '*.js'); do
+            node --check "$archivo" || fallas=$((fallas + 1))
+          done
+          echo "Archivos con error de sintaxis: $fallas"
+          test "$fallas" -eq 0
+
+      - name: Limite de intentos
+        run: node pruebas/prueba-limite.js
+
+      - name: Tipo de caja
+        run: node pruebas/prueba-transmision.js
+
+      - name: Edicion y anulacion de ordenes
+        run: node pruebas/prueba-anulacion.js

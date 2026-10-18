@@ -1,0 +1,60 @@
+# ==========================================================================
+#  CONSULTA DIARIA PARA QUE SUPABASE NO SE PAUSE
+#  Sistema de ordenes de trabajo y diagnostico - Taller Rapiservicios
+#
+#  MOTIVO
+#
+#  La capa gratuita de Supabase pausa el proyecto cuando pasa una semana sin
+#  actividad en la base, y no se reanuda solo. Ocurrio del 28 de agosto al 9
+#  de septiembre y otra vez el 10 de octubre de 2026; la segunda vez la
+#  aplicacion quedo esperando media hora antes de encontrar la causa.
+#
+#  Segun la documentacion de Supabase, unas pocas peticiones a la base cada
+#  dia suelen bastar. Por eso la consulta es diaria y no semanal.
+#
+#  QUE HACE
+#
+#  Pide /api/salud al servidor en Render. Esa ruta despierta al servidor si
+#  estaba dormido y hace una consulta minima a la base (una fila del catalogo
+#  de estados), que es la actividad que Supabase cuenta.
+#
+#  Si la base ya estaba pausada, /api/salud responde 503 y este trabajo falla.
+#  GitHub avisa por correo cuando un trabajo programado falla, de modo que la
+#  pausa se conoce el mismo dia y no al abrir la aplicacion frente al asesor.
+#  La reanudacion sigue siendo manual, desde el panel de Supabase.
+#
+#  LIMITE CONOCIDO
+#
+#  En un repositorio publico, GitHub desactiva los trabajos programados tras
+#  60 dias sin actividad en el repositorio. Mientras el proyecto siga en
+#  desarrollo no ocurre; si despues se quiere conservar, basta con volver a
+#  activarlo en la pestana Actions.
+# ==========================================================================
+
+name: Mantener activo
+
+on:
+  schedule:
+    # Todos los dias a las 13:23 UTC (7:23 de la manana en Guatemala). El
+    # minuto no es redondo para no coincidir con la hora punta de GitHub, que
+    # retrasa los trabajos programados en el minuto cero.
+    - cron: '23 13 * * *'
+  workflow_dispatch:
+
+jobs:
+  consultar-salud:
+    name: Consultar /api/salud
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Despertar el servidor y tocar la base
+        run: |
+          # El arranque en frio de Render toma cerca de un minuto, de ahi los
+          # reintentos. --fail-with-body hace que un 503 cuente como falla y
+          # deja ver la respuesta del servidor en el registro.
+          curl -sS --fail-with-body \
+            --retry 6 --retry-delay 20 --retry-all-errors \
+            --max-time 90 \
+            https://rapiservicios-api.onrender.com/api/salud
+          echo

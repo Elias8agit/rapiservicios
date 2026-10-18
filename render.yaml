@@ -20,7 +20,14 @@ services:
     rootDir: servidor
     buildCommand: npm install
     startCommand: npm start
-    healthCheckPath: /api/salud
+    # Ruta de vida del proceso, sin consulta a la base. Hasta el 10 de octubre
+    # de 2026 era /api/salud, que devuelve 503 cuando Supabase esta pausado:
+    # Render tomaba la instancia por enferma y nunca le dejaba pasar trafico,
+    # de modo que la aplicacion no podia ni avisar que la base no respondia.
+    # El cambio se hizo primero en el panel; se repite aqui porque el servicio
+    # se administra con este archivo y una sincronizacion lo devolveria al
+    # valor anterior.
+    healthCheckPath: /api/vivo
     envVars:
       # Version veintidos o superior. El cliente de Supabase construye su
       # componente de tiempo real al momento de crearse y ese componente
