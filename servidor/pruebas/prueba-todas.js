@@ -65,7 +65,7 @@ const SUITES = [
   },
   {
     clave: 'prueba:anulacion', archivo: 'prueba-anulacion.js',
-    nombre: 'Edicion, anulacion y fotos', necesita: 'nada, corre sin red',
+    nombre: 'Edicion, anulacion, fotos y roles', necesita: 'nada, corre sin red',
   },
 ];
 

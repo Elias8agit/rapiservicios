@@ -10,6 +10,11 @@
  *   GET  /api/usuarios        Listado del personal del taller
  *   POST /api/usuarios        Alta de personal
  *   PATCH /api/usuarios/:id   Activa o desactiva un perfil
+ *
+ * Desactivar es la forma de retirarle el acceso a quien deja el taller sin
+ * borrar su rastro: sus ordenes, fotografias y asientos de bitacora siguen
+ * apuntando a su perfil. El efecto es inmediato, porque requiereSesion revisa
+ * la columna activo en cada peticion y no solo al iniciar sesion.
  */
 
 const express = require('express');
@@ -102,6 +107,14 @@ enrutador.patch('/:id', requiereRol('PROPIETARIO'), async (peticion, respuesta) 
   const { activo } = peticion.body || {};
   if (typeof activo !== 'boolean') {
     return respuesta.status(400).json({ error: 'El campo activo requiere un valor logico.' });
+  }
+
+  // El propietario no se desactiva a si mismo: quedaria fuera del sistema y
+  // nadie podria reactivarlo desde la aplicacion.
+  if (activo === false && Number(peticion.params.id) === peticion.usuario.idUsuario) {
+    return respuesta.status(409).json({
+      error: 'No es posible desactivar la propia cuenta: nadie podria reactivarla desde la aplicacion.',
+    });
   }
 
   const { data, error } = await clienteServicio

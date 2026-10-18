@@ -4,7 +4,8 @@
  * Verifica las decisiones de servicios/reglasOrden.js sin red ni base de
  * datos: que campos se admiten al editar, como se valida cada uno, que deja
  * escrito la bitacora, en que etapas se puede anular, y desde el 18 de
- * octubre de 2026 quien puede eliminar cada fotografia.
+ * octubre de 2026 quien puede eliminar cada fotografia y que etapas asigna
+ * cada rol.
  *
  * Lo que esta suite NO cubre, porque necesita servidor y base: el bloqueo con
  * 409 de las rutas sobre una orden anulada, el filtro ANULADAS del listado y
@@ -25,6 +26,7 @@ const {
   fotografiaAnalizada,
   puedeEliminarFotografia,
   DESCRIPCION_FOTO_ANALIZADA,
+  puedeCambiarEstado,
 } = require('../src/servicios/reglasOrden');
 
 const LINEA = '='.repeat(78);
@@ -241,6 +243,16 @@ console.log('6. ELIMINACION DE FOTOGRAFIAS');
     !puedeEliminarFotografia({ ...base, anulada: true, fotografia: fotos[1], usuario: propietario }).permitido
   );
 }
+console.log();
+
+// 7. Etapas por rol ----------------------------------------------------------
+console.log('7. ETAPAS POR ROL');
+for (const etapa of ['EN DIAGNOSTICO', 'EN REPARACION', 'LISTO']) {
+  informar(`El mecanico lleva la orden a ${etapa}`, puedeCambiarEstado({ destino: etapa, rol: 'MECANICO' }).permitido);
+}
+informar('El mecanico no pasa la orden a ENTREGADO', !puedeCambiarEstado({ destino: 'ENTREGADO', rol: 'MECANICO' }).permitido);
+informar('El propietario si pasa la orden a ENTREGADO', puedeCambiarEstado({ destino: 'ENTREGADO', rol: 'PROPIETARIO' }).permitido);
+informar('Sin rol conocido no se entrega', !puedeCambiarEstado({ destino: 'ENTREGADO', rol: null }).permitido);
 
 // Resumen ------------------------------------------------------------------
 console.log();

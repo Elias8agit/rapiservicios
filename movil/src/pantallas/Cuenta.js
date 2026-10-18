@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback, useState } from 'react';
-import { Dimensions, PixelRatio, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, PixelRatio, Platform, Pressable, ScrollView, StatusBar, View } from 'react-native';
 import { Texto } from '../componentes/Texto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -124,6 +124,7 @@ export default function Cuenta() {
   const [reintentando, setReintentando] = useState(false);
   const [restableciendo, setRestableciendo] = useState(null);
   const [contrasenaNueva, setContrasenaNueva] = useState('');
+  const [cambiandoActivo, setCambiandoActivo] = useState(null);
 
   const consultarPersonal = useCallback(async () => {
     if (!esPropietario) return;
@@ -193,6 +194,46 @@ export default function Cuenta() {
     }
   }
 
+  /**
+   * Desactivar retira el acceso sin borrar el rastro de la persona: sus
+   * ordenes, fotografias y asientos de bitacora siguen a su nombre. Por eso
+   * se ofrece en lugar de eliminar la cuenta. Desactivar pide confirmacion;
+   * reactivar no, porque no quita nada.
+   */
+  function confirmarCambioActivo(persona) {
+    if (!persona.activo) {
+      cambiarActivo(persona, true);
+      return;
+    }
+    Alert.alert(
+      'Desactivar acceso',
+      `${persona.nombre_completo} no podra entrar a la aplicacion. Sus ordenes y registros se conservan, y se puede reactivar en cualquier momento.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Desactivar', style: 'destructive', onPress: () => cambiarActivo(persona, false) },
+      ]
+    );
+  }
+
+  async function cambiarActivo(persona, activo) {
+    setError(null);
+    setExito('');
+    setCambiandoActivo(persona.id_usuario);
+    try {
+      await api.cambiarActivoUsuario(persona.id_usuario, activo);
+      setExito(
+        activo
+          ? `${persona.nombre_completo} recupero el acceso.`
+          : `${persona.nombre_completo} ya no tiene acceso a la aplicacion.`
+      );
+      await consultarPersonal();
+    } catch (falla) {
+      setError(falla);
+    } finally {
+      setCambiandoActivo(null);
+    }
+  }
+
   return (
     <ScrollView style={estilos.pantalla} contentContainerStyle={estilos.contenido}>
       <View style={estilos.tarjeta}>
@@ -228,10 +269,38 @@ export default function Cuenta() {
                   color={p.rol?.nombre_rol === 'PROPIETARIO' ? colores.primarioSuave : colores.plata}
                 />
               </View>
-              <Texto style={estilos.tarjetaDetalle}>
-                {p.correo}
-                {p.activo ? '' : ' · inactivo'}
-              </Texto>
+              <Texto style={estilos.tarjetaDetalle}>{p.correo}</Texto>
+              {!p.activo ? (
+                <Texto style={{ color: colores.alerta, fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+                  Sin acceso: cuenta desactivada
+                </Texto>
+              ) : null}
+
+              {/* La propia cuenta no lleva este control: el servidor rechaza
+                  desactivarla, porque nadie podria reactivarla despues. */}
+              {p.id_usuario !== usuario?.idUsuario ? (
+                <Pressable
+                  onPress={() => confirmarCambioActivo(p)}
+                  disabled={cambiandoActivo !== null}
+                  hitSlop={6}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 }}
+                >
+                  {cambiandoActivo === p.id_usuario ? (
+                    <ActivityIndicator size="small" color={p.activo ? colores.alerta : colores.exito} />
+                  ) : (
+                    <Ionicons
+                      name={p.activo ? 'person-remove-outline' : 'person-add-outline'}
+                      size={15}
+                      color={p.activo ? colores.alerta : colores.exito}
+                    />
+                  )}
+                  <Texto
+                    style={{ color: p.activo ? colores.alerta : colores.exito, fontSize: 13, fontWeight: '600' }}
+                  >
+                    {p.activo ? 'Desactivar acceso' : 'Reactivar acceso'}
+                  </Texto>
+                </Pressable>
+              ) : null}
 
               {restableciendo === p.id_usuario ? (
                 <View style={{ marginTop: ESPACIO.sm }}>

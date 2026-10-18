@@ -48,6 +48,7 @@ const {
   fotografiaAnalizada,
   puedeEliminarFotografia,
   comentarioEliminacionFoto,
+  puedeCambiarEstado,
   DESCRIPCION_FOTO_ANALIZADA,
   MENSAJE_ANULADA,
 } = require('../servicios/reglasOrden');
@@ -468,6 +469,11 @@ enrutador.patch('/:id/estado', async (peticion, respuesta) => {
   }
   if (situacion.anulada) {
     return respuesta.status(409).json({ error: MENSAJE_ANULADA });
+  }
+
+  const permiso = puedeCambiarEstado({ destino: nombreEstado, rol: peticion.usuario.rol });
+  if (!permiso.permitido) {
+    return respuesta.status(403).json({ error: permiso.motivo });
   }
 
   const idEstado = await idDeEstado(nombreEstado);

@@ -16,6 +16,11 @@
  *   - Una orden anulada queda congelada: no avanza de etapa, no marca tareas,
  *     no recibe fotografias ni ediciones.
  *
+ * Permisos por rol, decididos el mismo 18 de octubre: el mecanico crea y
+ * modifica clientes y vehiculos y ve todas las ordenes; solo el propietario
+ * pasa una orden a ENTREGADO, porque entregar el vehiculo es cerrar con el
+ * cliente. El mecanico la lleva hasta LISTO.
+ *
  * Eliminacion de fotografias, decidida el mismo 18 de octubre:
  *
  *   - La elimina quien la tomo o el propietario.
@@ -260,6 +265,23 @@ function puedeEliminarFotografia({ fotografia, idProtegida, usuario, nombreEstad
   return { permitido: true, motivo: null, deUsuario: false };
 }
 
+/** Etapas que solo el propietario puede asignar. */
+const ETAPAS_DEL_PROPIETARIO = ['ENTREGADO'];
+
+/**
+ * Decide si un rol puede llevar la orden a una etapa.
+ * @returns {{ permitido: boolean, motivo: string|null }}
+ */
+function puedeCambiarEstado({ destino, rol }) {
+  if (ETAPAS_DEL_PROPIETARIO.includes(destino) && rol !== 'PROPIETARIO') {
+    return {
+      permitido: false,
+      motivo: `Solo el propietario pasa una orden a ${destino}: entregar el vehiculo es cerrar con el cliente.`,
+    };
+  }
+  return { permitido: true, motivo: null };
+}
+
 /** Texto del asiento de bitacora que deja la eliminacion de una fotografia. */
 function comentarioEliminacionFoto(fotografia) {
   return `Fotografia eliminada (etapa ${fotografia.etapa}).`;
@@ -285,4 +307,6 @@ module.exports = {
   fotografiaAnalizada,
   puedeEliminarFotografia,
   comentarioEliminacionFoto,
+  puedeCambiarEstado,
+  ETAPAS_DEL_PROPIETARIO,
 };

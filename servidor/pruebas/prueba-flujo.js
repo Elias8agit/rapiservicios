@@ -399,7 +399,9 @@ async function principal() {
   informar(
     'Se suben dos fotografias de prueba',
     fotoUno.estado === 201 && fotoDos.estado === 201,
-    `Estados ${fotoUno.estado} y ${fotoDos.estado}: ${fotoUno.cuerpo.error || fotoDos.cuerpo.error || ''}`
+    fotoUno.estado === 201 && fotoDos.estado === 201
+      ? ''
+      : `Estados ${fotoUno.estado} y ${fotoDos.estado}: ${fotoUno.cuerpo.error || fotoDos.cuerpo.error || ''}`
   );
   const idFotoUno = fotoUno.cuerpo.fotografia?.id_fotografia;
   const idFotoDos = fotoDos.cuerpo.fotografia?.id_fotografia;

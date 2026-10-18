@@ -897,7 +897,17 @@ export default function OrdenDetalle({ route, navigation }) {
 
       <AvisoConReintento error={error} alReintentar={reintentar} ocupado={reintentando} />
 
-      {anulada ? null : siguienteEstado ? (
+      {/* ENTREGADO solo lo asigna el propietario (decision del 18 de octubre
+          de 2026): entregar es cerrar con el cliente. Al mecanico se le dice
+          en lugar de mostrarle un boton que el servidor rechazaria. */}
+      {anulada ? null : siguienteEstado === 'ENTREGADO' && !esPropietario ? (
+        <View style={[estilos.aviso, estilos.avisoAtencion, { marginTop: ESPACIO.md }]}>
+          <Ionicons name="information-circle" size={19} color={colores.aviso} />
+          <Texto style={{ color: colores.aviso, fontSize: 13, lineHeight: 18, flex: 1 }}>
+            La orden esta LISTO. La entrega al cliente la registra el propietario.
+          </Texto>
+        </View>
+      ) : siguienteEstado ? (
         <Boton
           titulo={`Avanzar hacia ${siguienteEstado}`}
           icono={marcaSiguiente?.icono}
