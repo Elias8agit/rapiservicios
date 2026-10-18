@@ -256,9 +256,21 @@ async function principal() {
     `El diagnostico quedo asentado en la base de datos: ${detalle.cuerpo.diagnosticos?.length || 0} registro`,
     (detalle.cuerpo.diagnosticos?.length || 0) === 1
   );
+  // Desde la profundidad complementaria (septiembre de 2026) la orden reune
+  // dos clases de tarea: las del motor de reglas y las que sugiere la capa de
+  // interpretacion para este caso. Las dos quedan asentadas en detalle_orden,
+  // de modo que el total esperado es la suma. Antes esta comprobacion contaba
+  // solo las del motor y fallaba en cuanto el servicio sugeria alguna.
+  const tareasDelTaller = diagnostico.tareas?.length || 0;
+  const tareasSugeridas = orden.cuerpo.tareasSugeridas?.length || 0;
+  const tareasAsentadas = detalle.cuerpo.tareas?.length || 0;
   informar(
-    `El detalle de tareas quedo asentado: ${detalle.cuerpo.tareas?.length || 0} tareas`,
-    (detalle.cuerpo.tareas?.length || 0) === (diagnostico.tareas?.length || 0)
+    `El detalle de tareas quedo asentado: ${tareasAsentadas} tareas ` +
+      `(${tareasDelTaller} del taller y ${tareasSugeridas} sugeridas)`,
+    tareasAsentadas === tareasDelTaller + tareasSugeridas,
+    tareasAsentadas === tareasDelTaller + tareasSugeridas
+      ? ''
+      : `Se esperaban ${tareasDelTaller + tareasSugeridas}.`
   );
   informar(
     `La bitacora registro el ingreso: ${detalle.cuerpo.bitacora?.length || 0} asiento`,
@@ -424,7 +436,9 @@ async function principal() {
     consultaAnulada.estado === 200 &&
       consultaAnulada.cuerpo.anulada === true &&
       !JSON.stringify(consultaAnulada.cuerpo).includes('Prueba funcional automatizada'),
-    `Estado ${consultaAnulada.estado}: ${JSON.stringify(consultaAnulada.cuerpo).slice(0, 160)}`
+    consultaAnulada.estado === 200 && consultaAnulada.cuerpo.anulada === true
+      ? ''
+      : `Estado ${consultaAnulada.estado}: ${JSON.stringify(consultaAnulada.cuerpo).slice(0, 160)}`
   );
 
   // Resumen ----------------------------------------------------------------
